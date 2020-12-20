@@ -1,0 +1,8 @@
+version: "2"
+services:
+  chirpstack-udp-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile-devel
+    volumes:
+      - ./:/chirpstack-udp-bridge

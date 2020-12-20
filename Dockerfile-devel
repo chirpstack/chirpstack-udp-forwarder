@@ -1,0 +1,32 @@
+FROM rust:1.45-stretch
+
+# required by bingen
+RUN apt-get update && \
+	apt-get install -y \
+		build-essential \
+		cmake \
+		clang-3.9 \
+		libclang-3.9-dev \
+		llvm-3.9-dev \
+		git && \
+	apt-get clean
+
+RUN rustup target add armv5te-unknown-linux-gnueabi
+RUN rustup target add arm-unknown-linux-gnueabihf
+
+RUN echo '[target.armv5te-unknown-linux-gnueabi]\n\
+linker = "arm-linux-gnueabi-gcc"\n\
+[target.arm-unknown-linux-gnueabihf]\n\
+linker = "arm-linux-gnueabihf-gcc"\n'\
+>> /usr/local/cargo/config
+
+RUN mkdir -p /tmp
+RUN cd /tmp && git clone https://github.com/seife/opkg-utils.git && cd /tmp/opkg-utils && PREFIX=/usr make install
+
+ENV LLVM_CONFIG_PATH=llvm-config-3.9
+ENV PROJECT_PATH=/chirpstack-udp-bridge
+RUN mkdir -p $PROJECT_PATH
+WORKDIR $PROJECT_PATH
+
+COPY . /chirpstack-udp-bridge
+RUN cargo fetch
