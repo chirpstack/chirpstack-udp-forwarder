@@ -27,6 +27,12 @@ Configuration example:
   # When set to true, log messages are being written to syslog instead of stdout.
   log_to_syslog=false
 
+  # Prometheus metrics bind.
+  #
+  # E.g. '0.0.0.0:9800', leave blank to disable the metrics endpoint.
+  metrics_bind="0.0.0.0:9800"
+
+
   # Servers to forward the data to using UDP.
   # This section can be repeated.
   [[udp_bridge.servers]]
