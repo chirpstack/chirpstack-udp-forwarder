@@ -23,7 +23,7 @@ fn main() {
     let matches = App::new("chirpstack-udp-bridge")
         .version(config::VERSION)
         .author("Orne Brocaar <info@brocaar.com>")
-        .about("ChirpStack UDP bridge for Concentratord compatible with the Semtech UDP protocol")
+        .about("ChirpStack UDP Bridge for Concentratord, compatible with the Semtech UDP protocol")
         .arg(
             Arg::with_name("config")
                 .short("c")
@@ -47,14 +47,14 @@ fn main() {
     .expect("setup logger error");
 
     info!(
-        "Starting UDP Forwarder (version: {}, docs: {})",
+        "Starting ChirpStack UDP Bridge (version: {}, docs: {})",
         config::VERSION,
-        "https://www.chirpstack.io/concentratord/"
+        "https://github.com/brocaar/chirpstack-udp-bridge",
     );
 
     // read gateway id.
-    let gateway_id =
-        helpers::get_gateway_id(&config.concentratord.command_url).expect("get gateway_id error");
+    let gateway_id = helpers::get_gateway_id(&config.concentratord.command_url)
+        .expect("get gateway_id from concentratord failed, is concentratord running?");
 
     info!(
         "Received gateway ID from Concentratord, gateway_id: {}",
