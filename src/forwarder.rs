@@ -522,8 +522,13 @@ fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
         error!("UDP send error: {}, server: {}", e, state.server);
     };
 
-    metrics::incr_udp_sent_count(&state.server, "TX_ACK");
-    metrics::incr_udp_sent_bytes(&state.server, "TX_ACK", bytes.len());
+    let metrics_key: String = match tx_ack_udp.payload.txpk_ack.error.as_str() {
+        "" => "TX_ACK_OK".to_string(),
+        _ => "TX_ACK_ERROR_".to_owned() + &tx_ack_udp.payload.txpk_ack.error,
+    };
+
+    metrics::incr_udp_sent_count(&state.server, &metrics_key);
+    metrics::incr_udp_sent_bytes(&state.server, &metrics_key, bytes.len());
 
     Ok(())
 }
