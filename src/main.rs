@@ -29,13 +29,15 @@ fn main() {
                 .short("c")
                 .long("config")
                 .value_name("FILE")
+                .multiple(true)
+                .number_of_values(1)
                 .help("Path to configuration file")
                 .takes_value(true),
         )
         .get_matches();
 
-    let config_file = matches.value_of_lossy("config").unwrap();
-    let config = config::Configuration::get(&config_file).expect("read configuration error");
+    let config_files = matches.values_of_lossy("config").unwrap_or(vec![]);
+    let config = config::Configuration::get(config_files).expect("read configuration error");
     let log_level =
         log::Level::from_str(&config.udp_bridge.log_level).expect("parse log_level error");
 
