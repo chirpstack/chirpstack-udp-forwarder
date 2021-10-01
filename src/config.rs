@@ -33,13 +33,17 @@ pub struct Configuration {
 }
 
 impl Configuration {
-    pub fn get(filename: &str) -> Result<Configuration, String> {
-        let toml_content = match fs::read_to_string(filename) {
-            Ok(v) => v,
-            Err(err) => return Err(format!("read config file error: {}", err).to_string()),
-        };
+    pub fn get(filenames: Vec<String>) -> Result<Configuration, String> {
+        let mut content: String = String::new();
 
-        let config: Configuration = match toml::from_str(&toml_content) {
+        for file_name in &filenames {
+            content.push_str(&match fs::read_to_string(file_name) {
+                Ok(v) => v,
+                Err(err) => return Err(format!("read config file error: {}", err).to_string()),
+            });
+        }
+
+        let config: Configuration = match toml::from_str(&content) {
             Ok(v) => v,
             Err(err) => return Err(format!("parse config file error: {}", err)),
         };
