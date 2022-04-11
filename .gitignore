@@ -10,3 +10,6 @@
 # build folders
 /packaging/vendor/*/*/package
 /packaging/vendor/*/*/*.ipk
+
+# Generated Bitbake recipes
+*.bb
