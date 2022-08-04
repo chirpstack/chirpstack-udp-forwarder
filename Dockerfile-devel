@@ -1,13 +1,13 @@
-FROM rust:1.45-stretch
+FROM rust:1.62.1-buster
 
 # required by bingen
 RUN apt-get update && \
 	apt-get install -y \
 		build-essential \
 		cmake \
-		clang-3.9 \
-		libclang-3.9-dev \
-		llvm-3.9-dev \
+		clang \
+		libclang-dev \
+		llvm-dev \
 		git && \
 	apt-get clean
 
@@ -23,7 +23,7 @@ linker = "arm-linux-gnueabihf-gcc"\n'\
 RUN mkdir -p /tmp
 RUN cd /tmp && git clone https://github.com/seife/opkg-utils.git && cd /tmp/opkg-utils && PREFIX=/usr make install
 
-ENV LLVM_CONFIG_PATH=llvm-config-3.9
+ENV LLVM_CONFIG_PATH=llvm-config
 ENV PROJECT_PATH=/chirpstack-udp-bridge
 RUN mkdir -p $PROJECT_PATH
 WORKDIR $PROJECT_PATH
