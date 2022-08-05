@@ -1,6 +1,6 @@
 [package]
-name = "chirpstack-udp-bridge"
-repository="https://github.com/brocaar/chirpstack-udp-bridge/"
+name = "chirpstack-udp-forwarder"
+repository="https://github.com/chirpstack/chirpstack-udp-forwarder/"
 license="MIT"
 version = "4.0.0-test.1"
 authors = ["Orne Brocaar <info@brocaar.com>"]
