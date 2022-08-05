@@ -438,15 +438,10 @@ fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
     let pull_resp = structs::PullResp::from_bytes(data)?;
     let sock = state.command_sock.lock().unwrap();
 
-    // the UDP token is 2 bytes, an UUID is 16, therefore we prefix the
-    // token with 14 empty bytes.
-    let mut downlink_id = vec![0; 14];
-    downlink_id.append(&mut pull_resp.random_token.to_be_bytes().to_vec());
-
     let pl = match pull_resp
         .payload
         .txpk
-        .to_proto(downlink_id, state.gateway_id.clone())
+        .to_proto(pull_resp.random_token as u32, state.gateway_id.clone())
     {
         Ok(v) => v,
         Err(err) => {

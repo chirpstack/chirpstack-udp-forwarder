@@ -8,7 +8,7 @@ pub fn setup(name: &str, level: log::Level, syslog: bool) -> Result<(), String> 
             facility: Facility::LOG_USER,
             hostname: None,
             process: name.to_string(),
-            pid: process::id() as i32,
+            pid: process::id() as u32,
         };
         let logger = match syslog::unix(formatter) {
             Ok(v) => v,

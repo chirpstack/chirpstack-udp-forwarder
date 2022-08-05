@@ -26,7 +26,7 @@ fn main() {
         .about("ChirpStack UDP Bridge for Concentratord, compatible with the Semtech UDP protocol")
         .arg(
             Arg::with_name("config")
-                .short("c")
+                .short('c')
                 .long("config")
                 .value_name("FILE")
                 .multiple(true)

@@ -1,17 +1,17 @@
-use std::convert::TryFrom;
-use std::time::{Duration, SystemTime};
+use std::convert::TryInto;
+use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
+use chirpstack_api::gw;
+
 const PROTOCOL_VERSION: u8 = 0x02;
 
 pub enum CRC {
-    NoCRC,
     OK,
-    Fail,
 }
 
 impl Serialize for CRC {
@@ -20,9 +20,7 @@ impl Serialize for CRC {
         S: Serializer,
     {
         match self {
-            CRC::NoCRC => serializer.serialize_i32(0),
             CRC::OK => serializer.serialize_i32(1),
-            CRC::Fail => serializer.serialize_i32(-1),
         }
     }
 }
@@ -112,6 +110,7 @@ impl<'de> Deserialize<'de> for DataRate {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum CodeRate {
     Undefined,
     LoRa4_5,
@@ -230,16 +229,16 @@ impl RXPK {
 
         Ok(RXPK {
             time: DateTime::from(match &rx_info.time {
-                Some(v) => match SystemTime::try_from(v.clone()) {
-                    Ok(vv) => vv,
-                    Err(_) => SystemTime::now(),
+                Some(v) => match v.clone().try_into() {
+                    Ok(v) => v,
+                    Err(_) => Utc::now(),
                 },
-                None => SystemTime::now(),
+                None => Utc::now(),
             }),
-            tmms: match &rx_info.time_since_gps_epoch {
-                Some(v) => Some((v.seconds * 1000) as u64 + (v.nanos / 1000000) as u64),
-                None => None,
-            },
+            tmms: rx_info
+                .time_since_gps_epoch
+                .as_ref()
+                .map(|v| (v.seconds * 1000) as u64 + (v.nanos / 1000000) as u64),
             tmst: {
                 let mut bytes: [u8; 4] = [0; 4];
                 bytes.copy_from_slice(&rx_info.context);
@@ -248,59 +247,67 @@ impl RXPK {
             freq: tx_info.frequency as f64 / 1000000.0,
             chan: rx_info.channel,
             rfch: rx_info.rf_chain,
-            stat: match &rx_info.crc_status() {
-                chirpstack_api::gw::CrcStatus::NoCrc => CRC::NoCRC,
-                chirpstack_api::gw::CrcStatus::BadCrc => CRC::Fail,
-                chirpstack_api::gw::CrcStatus::CrcOk => CRC::OK,
-            },
-            modu: match &tx_info.modulation_info {
-                Some(v) => match v {
-                    chirpstack_api::gw::uplink_tx_info::ModulationInfo::LoraModulationInfo(_) => {
-                        Modulation::LoRa
-                    }
-                    chirpstack_api::gw::uplink_tx_info::ModulationInfo::FskModulationInfo(_) => {
-                        Modulation::Fsk
-                    }
-                },
-                None => {
-                    return Err("modulation_info must not be None".to_string());
-                }
-            },
-            datr: match &tx_info.modulation_info {
-                Some(v) => match v {
-                    chirpstack_api::gw::uplink_tx_info::ModulationInfo::LoraModulationInfo(vv) => {
-                        DataRate::LoRa(vv.spreading_factor, vv.bandwidth)
-                    }
-                    chirpstack_api::gw::uplink_tx_info::ModulationInfo::FskModulationInfo(vv) => {
-                        DataRate::FSK(vv.datarate)
-                    }
-                },
-                None => {
-                    return Err("modulation_info must not be None".to_string());
-                }
-            },
-            codr: match &tx_info.modulation_info {
-                Some(v) => match v {
-                    chirpstack_api::gw::uplink_tx_info::ModulationInfo::LoraModulationInfo(vv) => {
-                        match vv.code_rate.as_str() {
-                            "4/5" => Some(CodeRate::LoRa4_5),
-                            "4/6" => Some(CodeRate::LoRa4_6),
-                            "4/7" => Some(CodeRate::LoRa4_7),
-                            "4/8" => Some(CodeRate::LoRa4_8),
-                            _ => None,
+            stat: CRC::OK,
+            modu: match &tx_info.modulation {
+                Some(v) => match &v.parameters {
+                    Some(v) => match &v {
+                        gw::modulation::Parameters::Lora(_) => Modulation::LoRa,
+                        gw::modulation::Parameters::Fsk(_) => Modulation::Fsk,
+                        gw::modulation::Parameters::LrFhss(_) => {
+                            return Err("unsupported modulation".to_string());
                         }
+                    },
+                    None => {
+                        return Err("parameters must not be None".to_string());
                     }
-                    _ => None,
+                },
+                None => {
+                    return Err("modulation_info must not be None".to_string());
+                }
+            },
+            datr: match &tx_info.modulation {
+                Some(v) => match &v.parameters {
+                    Some(v) => match &v {
+                        gw::modulation::Parameters::Lora(v) => {
+                            DataRate::LoRa(v.spreading_factor, v.bandwidth)
+                        }
+                        gw::modulation::Parameters::Fsk(v) => DataRate::FSK(v.datarate),
+                        gw::modulation::Parameters::LrFhss(_) => {
+                            return Err("unsupported modulation".to_string());
+                        }
+                    },
+                    None => {
+                        return Err("parameters must not be None".to_string());
+                    }
+                },
+                None => {
+                    return Err("modulation_info must not be None".to_string());
+                }
+            },
+            codr: match &tx_info.modulation {
+                Some(v) => match &v.parameters {
+                    Some(v) => match &v {
+                        gw::modulation::Parameters::Lora(v) => Some(match v.code_rate() {
+                            gw::CodeRate::Cr45 => CodeRate::LoRa4_5,
+                            gw::CodeRate::Cr46 => CodeRate::LoRa4_6,
+                            gw::CodeRate::Cr47 => CodeRate::LoRa4_7,
+                            gw::CodeRate::Cr48 => CodeRate::LoRa4_8,
+                            _ => CodeRate::Undefined,
+                        }),
+                        _ => None,
+                    },
+                    None => None,
                 },
                 None => None,
             },
             rssi: rx_info.rssi,
-            lsnr: match &tx_info.modulation_info {
-                Some(v) => match v {
-                    chirpstack_api::gw::uplink_tx_info::ModulationInfo::LoraModulationInfo(_) => {
-                        Some(rx_info.lora_snr as f32)
-                    }
-                    _ => None,
+            lsnr: match &tx_info.modulation {
+                Some(v) => match &v.parameters {
+                    Some(v) => match &v {
+                        gw::modulation::Parameters::Lora(_) => Some(rx_info.snr as f32),
+                        _ => None,
+                    },
+                    None => None,
                 },
                 None => None,
             },
@@ -338,13 +345,13 @@ pub struct Stat {
 impl Stat {
     pub fn from_proto(stats: &chirpstack_api::gw::GatewayStats) -> Result<Self, String> {
         Ok(Stat {
-            time: DateTime::from(match &stats.time {
-                Some(v) => match SystemTime::try_from(v.clone()) {
-                    Ok(vv) => vv,
-                    Err(_) => SystemTime::now(),
+            time: match &stats.time {
+                Some(v) => match v.clone().try_into() {
+                    Ok(v) => v,
+                    Err(_) => Utc::now(),
                 },
-                None => SystemTime::now(),
-            }),
+                None => Utc::now(),
+            },
             lati: match &stats.location {
                 Some(v) => v.latitude,
                 None => 0.0,
@@ -528,111 +535,81 @@ pub struct TXPK {
 impl TXPK {
     pub fn to_proto(
         &self,
-        downlink_id: Vec<u8>,
+        downlink_id: u32,
         gateway_id: Vec<u8>,
     ) -> Result<chirpstack_api::gw::DownlinkFrame, String> {
-        // TXInfo
-        let mut tx_info = chirpstack_api::gw::DownlinkTxInfo::default();
-        tx_info.frequency = (self.freq * 1000000.0) as u32;
-        tx_info.power = self.powe as i32;
-
-        // TXInfo: set timing related data
-        if self.imme.is_some() && self.imme.unwrap() {
-            tx_info.set_timing(chirpstack_api::gw::DownlinkTiming::Immediately);
-            tx_info.timing_info = Some(
-                chirpstack_api::gw::downlink_tx_info::TimingInfo::ImmediatelyTimingInfo(
-                    chirpstack_api::gw::ImmediatelyTimingInfo {},
-                ),
-            );
-        } else if self.tmst.is_some() {
-            tx_info.set_timing(chirpstack_api::gw::DownlinkTiming::Delay);
-            tx_info.timing_info = Some(
-                chirpstack_api::gw::downlink_tx_info::TimingInfo::DelayTimingInfo(
-                    chirpstack_api::gw::DelayTimingInfo {
-                        delay: Some(prost_types::Duration {
+        let tx_info = chirpstack_api::gw::DownlinkTxInfo {
+            frequency: (self.freq * 1_000_000.0) as u32,
+            power: self.powe as i32,
+            modulation: Some(gw::Modulation {
+                parameters: Some(match self.modu {
+                    Modulation::LoRa => match self.datr {
+                        DataRate::LoRa(sf, bw) => {
+                            gw::modulation::Parameters::Lora(gw::LoraModulationInfo {
+                                bandwidth: bw,
+                                spreading_factor: sf,
+                                code_rate: match self.codr {
+                                    Some(CodeRate::LoRa4_5) => gw::CodeRate::Cr45,
+                                    Some(CodeRate::LoRa4_6) => gw::CodeRate::Cr46,
+                                    Some(CodeRate::LoRa4_7) => gw::CodeRate::Cr47,
+                                    Some(CodeRate::LoRa4_8) => gw::CodeRate::Cr48,
+                                    Some(CodeRate::Undefined) | None => gw::CodeRate::CrUndefined,
+                                }
+                                .into(),
+                                polarization_inversion: self.ipol.unwrap_or(true),
+                                ..Default::default()
+                            })
+                        }
+                        _ => {
+                            return Err("LoRa DataRate expected".to_string());
+                        }
+                    },
+                    Modulation::Fsk => match self.datr {
+                        DataRate::FSK(v) => {
+                            gw::modulation::Parameters::Fsk(gw::FskModulationInfo {
+                                datarate: v,
+                                frequency_deviation: self.fdev.unwrap_or(0),
+                            })
+                        }
+                        _ => {
+                            return Err("FSK DataRate expected".to_string());
+                        }
+                    },
+                }),
+            }),
+            board: 0,
+            antenna: 0,
+            timing: Some(gw::Timing {
+                parameters: Some(if self.imme.unwrap_or(false) {
+                    gw::timing::Parameters::Immediately(gw::ImmediatelyTimingInfo {})
+                } else if let Some(_) = self.tmst {
+                    gw::timing::Parameters::Delay(gw::DelayTimingInfo {
+                        delay: Some(pbjson_types::Duration {
+                            // This is correct! The delay is already added to the tmst which is
+                            // used to set the context.
                             seconds: 0,
                             nanos: 0,
                         }),
-                    },
-                ),
-            );
-            tx_info.context = self.tmst.unwrap().to_be_bytes().to_vec();
-        } else if self.tmms.is_some() {
-            tx_info.set_timing(chirpstack_api::gw::DownlinkTiming::GpsEpoch);
-            tx_info.timing_info = Some(
-                chirpstack_api::gw::downlink_tx_info::TimingInfo::GpsEpochTimingInfo(
-                    chirpstack_api::gw::GpsEpochTimingInfo {
-                        time_since_gps_epoch: Some(prost_types::Duration::from(
-                            Duration::from_millis(self.tmms.unwrap()),
+                    })
+                } else if let Some(v) = self.tmms {
+                    gw::timing::Parameters::GpsEpoch(gw::GpsEpochTimingInfo {
+                        time_since_gps_epoch: Some(pbjson_types::Duration::from(
+                            Duration::from_millis(v),
                         )),
-                    },
-                ),
-            );
-        } else {
-            return Err("no timing information found".to_string());
-        }
-
-        // TXInfo: set modulation related info
-        match self.modu {
-            Modulation::LoRa => {
-                tx_info.set_modulation(chirpstack_api::common::Modulation::Lora);
-                match self.datr {
-                    DataRate::LoRa(sf, bw) => {
-                        tx_info.modulation_info =
-                    Some(chirpstack_api::gw::downlink_tx_info::ModulationInfo::LoraModulationInfo(
-                        chirpstack_api::gw::LoRaModulationInfo {
-                            bandwidth: bw,
-                            spreading_factor: sf,
-                            code_rate: match &self.codr {
-                                Some(codr) => match codr {
-                                CodeRate::LoRa4_5 => "4/5".to_string(),
-                                CodeRate::LoRa4_6 => "4/6".to_string(),
-                                CodeRate::LoRa4_7 => "4/7".to_string(),
-                                CodeRate::LoRa4_8 => "4/8".to_string(),
-                                CodeRate::Undefined => "".to_string(),
-                                },
-                                None => return Err("codr must not be None".to_string()),
-                            },
-                            polarization_inversion: match self.ipol {
-                                Some(v) => v,
-                                None => true,
-                            },
-                        },
-                    ));
-                    }
-                    _ => {
-                        return Err("LoRa DataRate expected".to_string());
-                    }
-                }
-            }
-            Modulation::Fsk => {
-                tx_info.set_modulation(chirpstack_api::common::Modulation::Fsk);
-                match self.datr {
-                    DataRate::FSK(v) => {
-                        tx_info.modulation_info = Some(
-                            chirpstack_api::gw::downlink_tx_info::ModulationInfo::FskModulationInfo(
-                                chirpstack_api::gw::FskModulationInfo {
-                                    datarate: v,
-                                    frequency_deviation: match self.fdev {
-                                        Some(vv) => vv,
-                                        None => {
-                                            return Err("fdev must not be None".to_string());
-                                        }
-                                    },
-                                },
-                            ),
-                        );
-                    }
-                    _ => {
-                        return Err("FSK DataRate expected".to_string());
-                    }
-                }
-            }
-        }
+                    })
+                } else {
+                    return Err("no timing information found".to_string());
+                }),
+            }),
+            context: self
+                .tmst
+                .map(|v| v.to_be_bytes().to_vec())
+                .unwrap_or(vec![]),
+        };
 
         return Ok(chirpstack_api::gw::DownlinkFrame {
             downlink_id: downlink_id,
-            gateway_id: gateway_id,
+            gateway_id: hex::encode(gateway_id),
             items: vec![chirpstack_api::gw::DownlinkFrameItem {
                 tx_info: Some(tx_info),
                 phy_payload: match base64::decode(&self.data) {
@@ -641,6 +618,7 @@ impl TXPK {
                         return Err(format!("base64 decode payload error: {}", err).to_string());
                     }
                 },
+                ..Default::default()
             }],
             ..Default::default()
         });
@@ -714,6 +692,7 @@ mod compact_time_format {
 mod tests {
     use super::*;
 
+    use chrono::{DateTime, Utc};
     use std::str;
     use std::time::{Duration, SystemTime};
 
@@ -721,36 +700,34 @@ mod tests {
 
     #[test]
     fn test_push_data_rxpk_lora() {
-        let now = SystemTime::UNIX_EPOCH;
+        let now: DateTime<Utc> = DateTime::from(SystemTime::UNIX_EPOCH);
 
-        let mut rx_info = gw::UplinkRxInfo {
-            gateway_id: vec![1, 2, 3, 4, 5, 6, 7, 8],
-            time: Some(prost_types::Timestamp::from(now)),
-            time_since_gps_epoch: Some(prost_types::Duration::from(Duration::from_secs(1))),
+        let rx_info = gw::UplinkRxInfo {
+            gateway_id: "0102030405060708".into(),
+            time: Some(pbjson_types::Timestamp::from(now)),
+            time_since_gps_epoch: Some(pbjson_types::Duration::from(Duration::from_secs(1))),
             rssi: -160,
-            lora_snr: 5.5,
+            snr: 5.5,
+            board: 2,
             channel: 1,
             rf_chain: 1,
-            board: 2,
             antenna: 3,
             context: vec![1, 2, 3, 4],
             ..Default::default()
         };
-        rx_info.set_crc_status(gw::CrcStatus::CrcOk);
 
-        let mut tx_info = gw::UplinkTxInfo {
+        let tx_info = gw::UplinkTxInfo {
             frequency: 868300000,
-            modulation_info: Some(gw::uplink_tx_info::ModulationInfo::LoraModulationInfo(
-                gw::LoRaModulationInfo {
+            modulation: Some(gw::Modulation {
+                parameters: Some(gw::modulation::Parameters::Lora(gw::LoraModulationInfo {
                     bandwidth: 125000,
                     spreading_factor: 12,
-                    code_rate: "4/5".to_string(),
+                    code_rate: gw::CodeRate::Cr45.into(),
                     polarization_inversion: true,
-                },
-            )),
-            ..Default::default()
+                    ..Default::default()
+                })),
+            }),
         };
-        tx_info.set_modulation(common::Modulation::Lora);
 
         let uf = gw::UplinkFrame {
             rx_info: Some(rx_info),
@@ -783,12 +760,12 @@ mod tests {
 
     #[test]
     fn test_push_data_rxpk_fsk() {
-        let now = SystemTime::UNIX_EPOCH;
+        let now: DateTime<Utc> = DateTime::from(SystemTime::UNIX_EPOCH);
 
-        let mut rx_info = gw::UplinkRxInfo {
-            gateway_id: vec![1, 2, 3, 4, 5, 6, 7, 8],
-            time: Some(prost_types::Timestamp::from(now)),
-            time_since_gps_epoch: Some(prost_types::Duration::from(Duration::from_secs(1))),
+        let rx_info = gw::UplinkRxInfo {
+            gateway_id: "0102030405060708".into(),
+            time: Some(pbjson_types::Timestamp::from(now)),
+            time_since_gps_epoch: Some(pbjson_types::Duration::from(Duration::from_secs(1))),
             rssi: -160,
             channel: 1,
             rf_chain: 2,
@@ -797,19 +774,16 @@ mod tests {
             context: vec![1, 2, 3, 4],
             ..Default::default()
         };
-        rx_info.set_crc_status(gw::CrcStatus::CrcOk);
 
-        let mut tx_info = gw::UplinkTxInfo {
+        let tx_info = gw::UplinkTxInfo {
             frequency: 868300000,
-            modulation_info: Some(gw::uplink_tx_info::ModulationInfo::FskModulationInfo(
-                gw::FskModulationInfo {
+            modulation: Some(gw::Modulation {
+                parameters: Some(gw::modulation::Parameters::Fsk(gw::FskModulationInfo {
                     datarate: 50000,
                     ..Default::default()
-                },
-            )),
-            ..Default::default()
+                })),
+            }),
         };
-        tx_info.set_modulation(common::Modulation::Fsk);
 
         let uf = gw::UplinkFrame {
             rx_info: Some(rx_info),
@@ -842,11 +816,11 @@ mod tests {
 
     #[test]
     fn test_push_data_stat() {
-        let now = SystemTime::UNIX_EPOCH;
+        let now: DateTime<Utc> = DateTime::from(SystemTime::UNIX_EPOCH);
 
         let gs = gw::GatewayStats {
-            gateway_id: vec![1, 2, 3, 4, 5, 6, 7, 8],
-            time: Some(prost_types::Timestamp::from(now)),
+            gateway_id: "0102030405060708".into(),
+            time: Some(pbjson_types::Timestamp::from(now)),
             location: Some(common::Location {
                 latitude: 1.123,
                 longitude: 2.123,
@@ -934,41 +908,37 @@ mod tests {
         let downlink_frame = pull_resp
             .payload
             .txpk
-            .to_proto(
-                vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                vec![1, 2, 3, 4, 5, 6, 7, 8],
-            )
+            .to_proto(0, vec![1, 2, 3, 4, 5, 6, 7, 8])
             .unwrap();
 
-        let mut tx_info = gw::DownlinkTxInfo {
+        let tx_info = gw::DownlinkTxInfo {
             frequency: 864123456,
             power: 14,
             board: 0,
             antenna: 0,
             context: vec![],
-            timing_info: Some(gw::downlink_tx_info::TimingInfo::ImmediatelyTimingInfo(
-                gw::ImmediatelyTimingInfo {},
-            )),
-            modulation_info: Some(gw::downlink_tx_info::ModulationInfo::LoraModulationInfo(
-                gw::LoRaModulationInfo {
+            timing: Some(gw::Timing {
+                parameters: Some(gw::timing::Parameters::Immediately(
+                    gw::ImmediatelyTimingInfo {},
+                )),
+            }),
+            modulation: Some(gw::Modulation {
+                parameters: Some(gw::modulation::Parameters::Lora(gw::LoraModulationInfo {
                     bandwidth: 125000,
                     spreading_factor: 11,
-                    code_rate: "4/6".to_string(),
+                    code_rate: gw::CodeRate::Cr46.into(),
                     polarization_inversion: false,
-                },
-            )),
-
+                    ..Default::default()
+                })),
+            }),
             ..Default::default()
         };
-
-        tx_info.set_modulation(common::Modulation::Lora);
-        tx_info.set_timing(gw::DownlinkTiming::Immediately);
 
         assert_eq!(
             downlink_frame,
             gw::DownlinkFrame {
-                downlink_id: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                gateway_id: vec![1, 2, 3, 4, 5, 6, 7, 8],
+                downlink_id: 0,
+                gateway_id: "0102030405060708".into(),
                 items: vec![gw::DownlinkFrameItem {
                     phy_payload: base64::decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
                         .unwrap(),
@@ -1005,43 +975,37 @@ mod tests {
         let downlink_frame = pull_resp
             .payload
             .txpk
-            .to_proto(
-                vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                vec![1, 2, 3, 4, 5, 6, 7, 8],
-            )
+            .to_proto(0, vec![1, 2, 3, 4, 5, 6, 7, 8])
             .unwrap();
 
-        let mut tx_info = gw::DownlinkTxInfo {
+        let tx_info = gw::DownlinkTxInfo {
             frequency: 864123456,
             power: 14,
             board: 0,
             antenna: 0,
             context: vec![0, 76, 75, 64], // == 5000000
-            timing_info: Some(gw::downlink_tx_info::TimingInfo::DelayTimingInfo(
-                gw::DelayTimingInfo {
-                    delay: Some(prost_types::Duration::from(Duration::from_secs(0))),
-                },
-            )),
-            modulation_info: Some(gw::downlink_tx_info::ModulationInfo::LoraModulationInfo(
-                gw::LoRaModulationInfo {
+            timing: Some(gw::Timing {
+                parameters: Some(gw::timing::Parameters::Delay(gw::DelayTimingInfo {
+                    delay: Some(pbjson_types::Duration::from(Duration::from_secs(0))),
+                })),
+            }),
+            modulation: Some(gw::Modulation {
+                parameters: Some(gw::modulation::Parameters::Lora(gw::LoraModulationInfo {
                     bandwidth: 125000,
                     spreading_factor: 11,
-                    code_rate: "4/5".to_string(),
+                    code_rate: gw::CodeRate::Cr45.into(),
                     polarization_inversion: false,
-                },
-            )),
-
+                    ..Default::default()
+                })),
+            }),
             ..Default::default()
         };
-
-        tx_info.set_modulation(common::Modulation::Lora);
-        tx_info.set_timing(gw::DownlinkTiming::Delay);
 
         assert_eq!(
             downlink_frame,
             gw::DownlinkFrame {
-                downlink_id: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                gateway_id: vec![1, 2, 3, 4, 5, 6, 7, 8],
+                downlink_id: 0,
+                gateway_id: "0102030405060708".into(),
                 items: vec![gw::DownlinkFrameItem {
                     phy_payload: base64::decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
                         .unwrap(),
@@ -1078,45 +1042,39 @@ mod tests {
         let downlink_frame = pull_resp
             .payload
             .txpk
-            .to_proto(
-                vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                vec![1, 2, 3, 4, 5, 6, 7, 8],
-            )
+            .to_proto(0, vec![1, 2, 3, 4, 5, 6, 7, 8])
             .unwrap();
 
-        let mut tx_info = gw::DownlinkTxInfo {
+        let tx_info = gw::DownlinkTxInfo {
             frequency: 864123456,
             power: 14,
             board: 0,
             antenna: 0,
             context: vec![],
-            timing_info: Some(gw::downlink_tx_info::TimingInfo::GpsEpochTimingInfo(
-                gw::GpsEpochTimingInfo {
-                    time_since_gps_epoch: Some(prost_types::Duration::from(Duration::from_secs(
+            timing: Some(gw::Timing {
+                parameters: Some(gw::timing::Parameters::GpsEpoch(gw::GpsEpochTimingInfo {
+                    time_since_gps_epoch: Some(pbjson_types::Duration::from(Duration::from_secs(
                         5000,
                     ))),
-                },
-            )),
-            modulation_info: Some(gw::downlink_tx_info::ModulationInfo::LoraModulationInfo(
-                gw::LoRaModulationInfo {
+                })),
+            }),
+            modulation: Some(gw::Modulation {
+                parameters: Some(gw::modulation::Parameters::Lora(gw::LoraModulationInfo {
                     bandwidth: 125000,
                     spreading_factor: 11,
-                    code_rate: "4/5".to_string(),
+                    code_rate: gw::CodeRate::Cr45.into(),
                     polarization_inversion: false,
-                },
-            )),
-
+                    ..Default::default()
+                })),
+            }),
             ..Default::default()
         };
-
-        tx_info.set_modulation(common::Modulation::Lora);
-        tx_info.set_timing(gw::DownlinkTiming::GpsEpoch);
 
         assert_eq!(
             downlink_frame,
             gw::DownlinkFrame {
-                downlink_id: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                gateway_id: vec![1, 2, 3, 4, 5, 6, 7, 8],
+                downlink_id: 0,
+                gateway_id: "0102030405060708".into(),
                 items: vec![gw::DownlinkFrameItem {
                     phy_payload: base64::decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
                         .unwrap(),
@@ -1152,41 +1110,34 @@ mod tests {
         let downlink_frame = pull_resp
             .payload
             .txpk
-            .to_proto(
-                vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                vec![1, 2, 3, 4, 5, 6, 7, 8],
-            )
+            .to_proto(0, vec![1, 2, 3, 4, 5, 6, 7, 8])
             .unwrap();
 
-        let mut tx_info = gw::DownlinkTxInfo {
+        let tx_info = gw::DownlinkTxInfo {
             frequency: 861300000,
             power: 12,
             board: 0,
             antenna: 0,
             context: vec![0, 76, 75, 64], // == 5000000
-            timing_info: Some(gw::downlink_tx_info::TimingInfo::DelayTimingInfo(
-                gw::DelayTimingInfo {
-                    delay: Some(prost_types::Duration::from(Duration::from_secs(0))),
-                },
-            )),
-            modulation_info: Some(gw::downlink_tx_info::ModulationInfo::FskModulationInfo(
-                gw::FskModulationInfo {
+            timing: Some(gw::Timing {
+                parameters: Some(gw::timing::Parameters::Delay(gw::DelayTimingInfo {
+                    delay: Some(pbjson_types::Duration::from(Duration::from_secs(0))),
+                })),
+            }),
+            modulation: Some(gw::Modulation {
+                parameters: Some(gw::modulation::Parameters::Fsk(gw::FskModulationInfo {
                     frequency_deviation: 3000,
                     datarate: 50000,
-                },
-            )),
-
+                })),
+            }),
             ..Default::default()
         };
-
-        tx_info.set_modulation(common::Modulation::Fsk);
-        tx_info.set_timing(gw::DownlinkTiming::Delay);
 
         assert_eq!(
             downlink_frame,
             gw::DownlinkFrame {
-                downlink_id: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                gateway_id: vec![1, 2, 3, 4, 5, 6, 7, 8],
+                downlink_id: 0,
+                gateway_id: "0102030405060708".into(),
                 items: vec![gw::DownlinkFrameItem {
                     phy_payload: base64::decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
                         .unwrap(),
