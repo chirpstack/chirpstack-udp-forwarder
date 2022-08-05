@@ -20,10 +20,12 @@ mod socket;
 mod structs;
 
 fn main() {
-    let matches = App::new("chirpstack-udp-bridge")
+    let matches = App::new("chirpstack-udp-forwarder")
         .version(config::VERSION)
         .author("Orne Brocaar <info@brocaar.com>")
-        .about("ChirpStack UDP Bridge for Concentratord, compatible with the Semtech UDP protocol")
+        .about(
+            "ChirpStack UDP Forwarder for Concentratord, compatible with the Semtech UDP protocol",
+        )
         .arg(
             Arg::with_name("config")
                 .short('c')
@@ -39,19 +41,19 @@ fn main() {
     let config_files = matches.values_of_lossy("config").unwrap_or(vec![]);
     let config = config::Configuration::get(config_files).expect("read configuration error");
     let log_level =
-        log::Level::from_str(&config.udp_bridge.log_level).expect("parse log_level error");
+        log::Level::from_str(&config.udp_forwarder.log_level).expect("parse log_level error");
 
     logging::setup(
-        &"chirpstack-udp-bridge",
+        &"chirpstack-udp-forwarder",
         log_level,
-        config.udp_bridge.log_to_syslog,
+        config.udp_forwarder.log_to_syslog,
     )
     .expect("setup logger error");
 
     info!(
-        "Starting ChirpStack UDP Bridge (version: {}, docs: {})",
+        "Starting ChirpStack UDP Forwarder (version: {}, docs: {})",
         config::VERSION,
-        "https://github.com/brocaar/chirpstack-udp-bridge",
+        "https://github.com/chirpstack/chirpstack-udp-forwarder",
     );
 
     // read gateway id.
@@ -67,7 +69,7 @@ fn main() {
     let mut threads: Vec<thread::JoinHandle<()>> = vec![];
 
     // servers
-    for server in config.udp_bridge.servers {
+    for server in config.udp_forwarder.servers {
         threads.push(thread::spawn({
             let gateway_id = gateway_id.clone();
             let event_url = config.concentratord.event_url.clone();
@@ -78,9 +80,9 @@ fn main() {
     }
 
     // metrics
-    if config.udp_bridge.metrics_bind != "" {
+    if config.udp_forwarder.metrics_bind != "" {
         threads.push(thread::spawn({
-            let bind = config.udp_bridge.metrics_bind.clone();
+            let bind = config.udp_forwarder.metrics_bind.clone();
             move || metrics::start(bind)
         }));
     }

@@ -1,8 +1,8 @@
 version: "2"
 services:
-  chirpstack-udp-bridge:
+  chirpstack-udp-forwarder:
     build:
       context: .
       dockerfile: Dockerfile-devel
     volumes:
-      - ./:/chirpstack-udp-bridge
+      - ./:/chirpstack-udp-forwarder

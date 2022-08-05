@@ -1,6 +1,6 @@
-# ChirpStack UDP Bridge
+# ChirpStack UDP Forwarder
 
-The ChirpStack UDP Bridge is an UDP forwarder for the [ChirpStack Concentratord](https://www.chirpstack.io/concentratord/)
+The ChirpStack UDP Forwarder is an UDP forwarder for the [ChirpStack Concentratord](https://www.chirpstack.io/concentratord/)
 and is compatible with the [Semtech UDP protocol](https://github.com/Lora-net/packet_forwarder/blob/master/PROTOCOL.TXT).
 
 ## Configuration
@@ -8,8 +8,8 @@ and is compatible with the [Semtech UDP protocol](https://github.com/Lora-net/pa
 Configuration example:
 
 ```toml
-# UDP Bridge configuration.
-[udp_bridge]
+# UDP Forwarder configuration.
+[udp_forwarder]
 
   # Log level.
   #
@@ -35,19 +35,19 @@ Configuration example:
 
   # Servers to forward the data to using UDP.
   # This section can be repeated.
-  [[udp_bridge.servers]]
+  [[udp_forwarder.servers]]
     # Server (hostname:port).
     server="localhost:1700"
 
     # Keepalive interval (seconds).
     #
-    # In this interval, the ChirpStack UDP Bridge will send keepalive
+    # In this interval, the ChirpStack UDP Forwarder will send keepalive
     # frames to the server, which must be answered by an acknowledgement.
     keepalive_interval_secs=10
 
     # Max. allowed keepalive failures.
     #
-    # After the max. number has been reached, the ChirpStack UDP Bridge will
+    # After the max. number has been reached, the ChirpStack UDP Forwarder will
     # 're-connect' to the server, meaning it will also re-resolve the DNS in case
     # the server address is a hostname.
     keepalive_max_failures=12
@@ -69,5 +69,5 @@ Configuration example:
 
 ## License
 
-ChirpStack Concentratord is distributed under the MIT license. See
+ChirpStack UDP Forwarder is distributed under the MIT license. See
 [LICENSE](https://github.com/brocaar/chirpstack-udp-bridge/blob/master/LICENSE).

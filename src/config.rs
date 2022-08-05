@@ -5,7 +5,7 @@ use serde::Deserialize;
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 #[derive(Deserialize, Default)]
-pub struct UDPBridge {
+pub struct UdpForwarder {
     pub log_level: String,
     #[serde(default)]
     pub log_to_syslog: bool,
@@ -28,7 +28,7 @@ pub struct Concentratord {
 
 #[derive(Deserialize)]
 pub struct Configuration {
-    pub udp_bridge: UDPBridge,
+    pub udp_forwarder: UdpForwarder,
     pub concentratord: Concentratord,
 }
 

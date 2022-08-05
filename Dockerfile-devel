@@ -24,9 +24,9 @@ RUN mkdir -p /tmp
 RUN cd /tmp && git clone https://github.com/seife/opkg-utils.git && cd /tmp/opkg-utils && PREFIX=/usr make install
 
 ENV LLVM_CONFIG_PATH=llvm-config
-ENV PROJECT_PATH=/chirpstack-udp-bridge
+ENV PROJECT_PATH=/chirpstack-udp-forwarder
 RUN mkdir -p $PROJECT_PATH
 WORKDIR $PROJECT_PATH
 
-COPY . /chirpstack-udp-bridge
+COPY . /chirpstack-udp-forwarder
 RUN cargo fetch
