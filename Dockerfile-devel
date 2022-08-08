@@ -13,6 +13,7 @@ RUN apt-get update && \
 
 RUN rustup target add armv5te-unknown-linux-gnueabi
 RUN rustup target add arm-unknown-linux-gnueabihf
+RUN cargo install cargo-bitbake
 
 RUN echo '[target.armv5te-unknown-linux-gnueabi]\n\
 linker = "arm-linux-gnueabi-gcc"\n\
