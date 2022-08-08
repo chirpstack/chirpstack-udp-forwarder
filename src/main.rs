@@ -38,7 +38,10 @@ fn main() {
         )
         .get_matches();
 
-    let config_files = matches.values_of_lossy("config").unwrap_or(vec![]);
+    let config_files: Vec<String> = match matches.get_many::<String>("config") {
+        None => vec![],
+        Some(v) => v.cloned().collect(),
+    };
     let config = config::Configuration::get(config_files).expect("read configuration error");
     let log_level =
         log::Level::from_str(&config.udp_forwarder.log_level).expect("parse log_level error");
