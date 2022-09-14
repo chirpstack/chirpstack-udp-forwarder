@@ -1,6 +1,6 @@
 # ChirpStack UDP Forwarder
 
-The ChirpStack UDP Forwarder is an UDP forwarder for the [ChirpStack Concentratord](https://www.chirpstack.io/concentratord/)
+The ChirpStack UDP Forwarder is an UDP forwarder for the [ChirpStack Concentratord](https://www.chirpstack.io/docs/chirpstack-concentratord/index.html)
 and is compatible with the [Semtech UDP protocol](https://github.com/Lora-net/packet_forwarder/blob/master/PROTOCOL.TXT).
 
 ## Configuration
