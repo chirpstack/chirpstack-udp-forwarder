@@ -104,7 +104,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chirpstack-udp-forwarder"
-version = "4.0.0-rc.1"
+version = "4.0.0"
 dependencies = [
  "base64",
  "chirpstack_api",
@@ -128,9 +128,9 @@ dependencies = [
 
 [[package]]
 name = "chirpstack_api"
-version = "4.0.0-test.18"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43f549809b739cb819ec547db7697b4ac9738b082b48ac987cd47ad7910d233c"
+checksum = "62c2607e52b13edf130389552468963e276900e4a0a52c875975dd05622adb6a"
 dependencies = [
  "hex",
  "pbjson",
