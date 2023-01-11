@@ -21,7 +21,7 @@ uuid = { version = "1.1", features = ["v4"] }
 syslog = "6.0"
 rand = "0.8"
 chrono = "0.4"
-base64 = "0.13"
+base64 = "0.21"
 prost = "0.10"
 pbjson-types = "0.3"
 prometheus = "0.13"
