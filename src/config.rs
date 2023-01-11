@@ -33,10 +33,10 @@ pub struct Configuration {
 }
 
 impl Configuration {
-    pub fn get(filenames: Vec<String>) -> Result<Configuration, String> {
+    pub fn get(filenames: &[String]) -> Result<Configuration, String> {
         let mut content: String = String::new();
 
-        for file_name in &filenames {
+        for file_name in filenames {
             content.push_str(&match fs::read_to_string(file_name) {
                 Ok(v) => v,
                 Err(err) => return Err(format!("read config file error: {}", err).to_string()),

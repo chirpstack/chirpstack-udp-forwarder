@@ -1,5 +1,6 @@
 [package]
 name = "chirpstack-udp-forwarder"
+description="ChirpStack UDP Forwarder for Concentratord, compatible with the Semtech UDP protocol"
 repository="https://github.com/chirpstack/chirpstack-udp-forwarder/"
 license="MIT"
 version = "4.0.0"
@@ -11,7 +12,7 @@ publish = false
 chirpstack_api = { version = "4.1.1", default-features = false }
 serde_json = "1.0"
 zmq = "0.9"
-clap = "3.2"
+clap = { version = "4.0", default-features = false, features = ["std", "help", "usage", "derive"] }
 hex = "0.4"
 toml = "0.5"
 serde = { version = "1.0", features = ["derive"] }

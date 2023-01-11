@@ -6,7 +6,7 @@ extern crate log;
 use std::str::FromStr;
 use std::thread;
 
-use clap::{App, Arg};
+use clap::Parser;
 
 mod commands;
 mod config;
@@ -19,30 +19,16 @@ mod signals;
 mod socket;
 mod structs;
 
-fn main() {
-    let matches = App::new("chirpstack-udp-forwarder")
-        .version(config::VERSION)
-        .author("Orne Brocaar <info@brocaar.com>")
-        .about(
-            "ChirpStack UDP Forwarder for Concentratord, compatible with the Semtech UDP protocol",
-        )
-        .arg(
-            Arg::with_name("config")
-                .short('c')
-                .long("config")
-                .value_name("FILE")
-                .multiple(true)
-                .number_of_values(1)
-                .help("Path to configuration file")
-                .takes_value(true),
-        )
-        .get_matches();
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    #[arg(short, long, value_name = "FILE")]
+    config: Vec<String>,
+}
 
-    let config_files: Vec<String> = match matches.get_many::<String>("config") {
-        None => vec![],
-        Some(v) => v.cloned().collect(),
-    };
-    let config = config::Configuration::get(config_files).expect("read configuration error");
+fn main() {
+    let cli = Cli::parse();
+    let config = config::Configuration::get(&cli.config).expect("read configuration error");
     let log_level =
         log::Level::from_str(&config.udp_forwarder.log_level).expect("parse log_level error");
 
