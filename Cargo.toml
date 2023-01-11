@@ -16,7 +16,7 @@ hex = "0.4"
 toml = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-simple_logger = "2.2"
+simple_logger = "4.0"
 uuid = { version = "1.1", features = ["v4"] }
 syslog = "6.0"
 rand = "0.8"
