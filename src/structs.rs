@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 use std::time::Duration;
 
+use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -312,7 +313,7 @@ impl RXPK {
                 None => None,
             },
             size: up.phy_payload.len() as u8,
-            data: base64::encode(up.phy_payload.clone()),
+            data: general_purpose::STANDARD.encode(up.phy_payload.clone()),
         })
     }
 }
@@ -612,7 +613,7 @@ impl TXPK {
             gateway_id: hex::encode(gateway_id),
             items: vec![chirpstack_api::gw::DownlinkFrameItem {
                 tx_info: Some(tx_info),
-                phy_payload: match base64::decode(&self.data) {
+                phy_payload: match general_purpose::STANDARD.decode(&self.data) {
                     Ok(v) => v,
                     Err(err) => {
                         return Err(format!("base64 decode payload error: {}", err).to_string());
@@ -940,7 +941,8 @@ mod tests {
                 downlink_id: 0,
                 gateway_id: "0102030405060708".into(),
                 items: vec![gw::DownlinkFrameItem {
-                    phy_payload: base64::decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
+                    phy_payload: general_purpose::STANDARD
+                        .decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
                         .unwrap(),
                     tx_info: Some(tx_info),
                     ..Default::default()
@@ -1007,7 +1009,8 @@ mod tests {
                 downlink_id: 0,
                 gateway_id: "0102030405060708".into(),
                 items: vec![gw::DownlinkFrameItem {
-                    phy_payload: base64::decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
+                    phy_payload: general_purpose::STANDARD
+                        .decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
                         .unwrap(),
                     tx_info: Some(tx_info),
                     ..Default::default()
@@ -1076,7 +1079,8 @@ mod tests {
                 downlink_id: 0,
                 gateway_id: "0102030405060708".into(),
                 items: vec![gw::DownlinkFrameItem {
-                    phy_payload: base64::decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
+                    phy_payload: general_purpose::STANDARD
+                        .decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
                         .unwrap(),
                     tx_info: Some(tx_info),
                     ..Default::default()
@@ -1139,7 +1143,8 @@ mod tests {
                 downlink_id: 0,
                 gateway_id: "0102030405060708".into(),
                 items: vec![gw::DownlinkFrameItem {
-                    phy_payload: base64::decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
+                    phy_payload: general_purpose::STANDARD
+                        .decode("H3P3N2i9qc4yt7rK7ldqoeCVJGBybzPY5h1Dd7P7p8s=")
                         .unwrap(),
                     tx_info: Some(tx_info),
                     ..Default::default()
