@@ -8,11 +8,11 @@ pub fn setup(name: &str, level: log::Level, syslog: bool) -> Result<(), String> 
             facility: Facility::LOG_USER,
             hostname: None,
             process: name.to_string(),
-            pid: process::id() as u32,
+            pid: process::id(),
         };
         let logger = match syslog::unix(formatter) {
             Ok(v) => v,
-            Err(err) => return Err(format!("create syslog logger error: {}", err).to_string()),
+            Err(err) => return Err(format!("create syslog logger error: {}", err)),
         };
 
         log::set_boxed_logger(Box::new(BasicLogger::new(logger)))
@@ -22,5 +22,5 @@ pub fn setup(name: &str, level: log::Level, syslog: bool) -> Result<(), String> 
         simple_logger::init_with_level(level).unwrap();
     }
 
-    return Ok(());
+    Ok(())
 }

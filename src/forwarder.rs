@@ -34,7 +34,7 @@ impl State {
         let mut rng = rand::thread_rng();
         let mut token = self.pull_data_token.lock().unwrap();
         *token = rng.gen();
-        return *token;
+        *token
     }
 
     fn get_pull_data_token(&self) -> u16 {
@@ -54,7 +54,7 @@ impl State {
         let mut rng = rand::thread_rng();
         let mut token = self.push_data_token.lock().unwrap();
         *token = rng.gen();
-        return *token;
+        *token
     }
 
     fn get_push_data_token(&self) -> u16 {
@@ -63,7 +63,7 @@ impl State {
 
     fn incr_push_data_sent(&self) {
         let mut sent = self.push_data_sent.lock().unwrap();
-        *sent = *sent + 1;
+        *sent += 1;
     }
 
     fn get_and_reset_push_data_sent(&self) -> u32 {
@@ -75,7 +75,7 @@ impl State {
 
     fn incr_push_data_acked(&self) {
         let mut acked = self.push_data_acked.lock().unwrap();
-        *acked = *acked + 1;
+        *acked += 1;
     }
 
     fn get_and_reset_push_data_acked(&self) -> u32 {
@@ -87,14 +87,14 @@ impl State {
 
     fn incr_rxfw(&self) {
         let mut rxfw = self.rxfw.lock().unwrap();
-        *rxfw = *rxfw + 1;
+        *rxfw += 1;
     }
 
     fn get_and_reset_rxfw(&self) -> u32 {
         let mut rxfw = self.rxfw.lock().unwrap();
         let out = *rxfw;
         *rxfw = 0;
-        return out;
+        out
     }
 }
 
@@ -114,6 +114,7 @@ pub fn start(conf: &Server, event_url: String, command_url: String, gateway_id: 
 
         // setup state
         let state = State {
+            socket,
             server: conf.server.clone(),
             keepalive_interval: match conf.keepalive_interval_secs {
                 0 => time::Duration::from_secs(5),
@@ -121,7 +122,6 @@ pub fn start(conf: &Server, event_url: String, command_url: String, gateway_id: 
             },
             keepalive_max_failures: conf.keepalive_max_failures,
             gateway_id: gateway_id.clone(),
-            socket: socket,
             push_data_token: Mutex::new(0),
             push_data_sent: Mutex::new(0),
             push_data_acked: Mutex::new(0),
@@ -192,7 +192,7 @@ fn pull_data_loop(state: Arc<State>, signal_pool: signals::SignalPool) {
                 state.server,
                 state.get_pull_data_token()
             );
-            missed_acks = missed_acks + 1;
+            missed_acks += 1;
         } else {
             missed_acks = 0;
         }
@@ -233,7 +233,10 @@ fn udp_receive_loop(state: Arc<State>, stop_receive: Receiver<signals::Signal>) 
     let mut buffer: [u8; 65535] = [0; 65535];
 
     loop {
-        if let Ok(_) = stop_receive.recv_timeout(time::Duration::from_millis(0)) {
+        if stop_receive
+            .recv_timeout(time::Duration::from_millis(0))
+            .is_ok()
+        {
             debug!("Terminating UDP receive loop, server: {}", state.server);
             return;
         };
@@ -298,17 +301,20 @@ fn events_loop(state: Arc<State>, stop_receive: Receiver<signals::Signal>) {
     let reader = events::Reader::new(&event_sock, time::Duration::from_millis(100));
 
     for cmd in reader {
-        if let Ok(_) = stop_receive.recv_timeout(time::Duration::from_millis(0)) {
+        if stop_receive
+            .recv_timeout(time::Duration::from_millis(0))
+            .is_ok()
+        {
             debug!("Terminating events loop, server: {}", state.server);
             return;
         }
 
         match cmd {
             events::Event::Uplink(up) => {
-                events_up(&state, up);
+                events_up(&state, *up);
             }
             events::Event::Stats(stats) => {
-                events_stats(&state, stats);
+                events_stats(&state, *stats);
             }
             events::Event::Timeout => {
                 continue;
@@ -367,10 +373,10 @@ fn events_stats(state: &Arc<State>, stats: chirpstack_api::gw::GatewayStats) {
 }
 
 fn events_up(state: &Arc<State>, up: chirpstack_api::gw::UplinkFrame) {
-    let rxpk = match structs::RXPK::from_proto(&up) {
+    let rxpk = match structs::RxPk::from_proto(&up) {
         Ok(v) => v,
         Err(err) => {
-            error!("RXPK from proto message error: {}", err);
+            error!("RxPk from proto message error: {}", err);
             return;
         }
     };
@@ -404,7 +410,7 @@ fn events_up(state: &Arc<State>, up: chirpstack_api::gw::UplinkFrame) {
 }
 
 fn handle_push_ack(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
-    let push_ack = structs::PushAck::from_bytes(&data)?;
+    let push_ack = structs::PushAck::from_bytes(data)?;
     let expected_token = state.get_push_data_token();
 
     if push_ack.random_token == expected_token {
@@ -445,7 +451,7 @@ fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
     {
         Ok(v) => v,
         Err(err) => {
-            return Err(format!("TXPK to proto error: {}", err).to_string());
+            return Err(format!("TxPk to proto error: {}", err));
         }
     };
 
@@ -468,7 +474,7 @@ fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
     let tx_ack = match chirpstack_api::gw::DownlinkTxAck::decode(resp_b) {
         Ok(v) => v,
         Err(err) => {
-            return Err(format!("decode DownlinkTxAck error: {}", err).to_string());
+            return Err(format!("decode DownlinkTxAck error: {}", err));
         }
     };
 

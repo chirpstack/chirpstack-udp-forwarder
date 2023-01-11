@@ -17,7 +17,7 @@ impl SignalPool {
     pub fn new_receiver(&mut self) -> Receiver<Signal> {
         let (sender, receiver) = channel();
         self.senders.push(sender);
-        return receiver;
+        receiver
     }
 
     pub fn send_signal(self, signal: Signal) {

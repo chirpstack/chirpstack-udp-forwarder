@@ -11,23 +11,23 @@ use chirpstack_api::gw;
 
 const PROTOCOL_VERSION: u8 = 0x02;
 
-pub enum CRC {
+pub enum Crc {
     OK,
 }
 
-impl Serialize for CRC {
+impl Serialize for Crc {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         match self {
-            CRC::OK => serializer.serialize_i32(1),
+            Crc::OK => serializer.serialize_i32(1),
         }
     }
 }
 
 pub enum Modulation {
-    LoRa,
+    Lora,
     Fsk,
 }
 
@@ -37,8 +37,8 @@ impl Serialize for Modulation {
         S: Serializer,
     {
         match self {
-            Modulation::LoRa => serializer.serialize_str(&"LORA"),
-            Modulation::Fsk => serializer.serialize_str(&"FSK"),
+            Modulation::Lora => serializer.serialize_str("LORA"),
+            Modulation::Fsk => serializer.serialize_str("FSK"),
         }
     }
 }
@@ -50,7 +50,7 @@ impl<'de> Deserialize<'de> for Modulation {
     {
         let s = String::deserialize(deserializer)?;
         match s.as_str() {
-            "LORA" => Ok(Modulation::LoRa),
+            "LORA" => Ok(Modulation::Lora),
             "FSK" => Ok(Modulation::Fsk),
             _ => Err(D::Error::custom("unexpected value"))?,
         }
@@ -58,8 +58,8 @@ impl<'de> Deserialize<'de> for Modulation {
 }
 
 pub enum DataRate {
-    LoRa(u32, u32), // SF and BW (kHz)
-    FSK(u32),       // bitrate
+    Lora(u32, u32), // SF and BW (kHz)
+    Fsk(u32),       // bitrate
 }
 
 impl Serialize for DataRate {
@@ -68,8 +68,8 @@ impl Serialize for DataRate {
         S: Serializer,
     {
         match self {
-            DataRate::LoRa(sf, bw) => serializer.serialize_str(&format!("SF{}BW{}", sf, bw / 1000)),
-            DataRate::FSK(bitrate) => serializer.serialize_u32(*bitrate),
+            DataRate::Lora(sf, bw) => serializer.serialize_str(&format!("SF{}BW{}", sf, bw / 1000)),
+            DataRate::Fsk(bitrate) => serializer.serialize_u32(*bitrate),
         }
     }
 }
@@ -99,14 +99,14 @@ impl<'de> Deserialize<'de> for DataRate {
                     }
                 };
 
-                return Ok(DataRate::LoRa(sf, bw * 1000));
+                Ok(DataRate::Lora(sf, bw * 1000))
             }
             Value::Number(v) => {
                 // let bitrate = u32::deserialize(deserializer)?;
                 let br = v.as_u64().unwrap();
-                return Ok(DataRate::FSK(br as u32));
+                Ok(DataRate::Fsk(br as u32))
             }
-            _ => return Err(D::Error::custom("unexpected type")),
+            _ => Err(D::Error::custom("unexpected type")),
         }
     }
 }
@@ -126,10 +126,10 @@ impl Serialize for CodeRate {
         S: Serializer,
     {
         match self {
-            CodeRate::LoRa4_5 => serializer.serialize_str(&"4/5"),
-            CodeRate::LoRa4_6 => serializer.serialize_str(&"4/6"),
-            CodeRate::LoRa4_7 => serializer.serialize_str(&"4/7"),
-            CodeRate::LoRa4_8 => serializer.serialize_str(&"4/8"),
+            CodeRate::LoRa4_5 => serializer.serialize_str("4/5"),
+            CodeRate::LoRa4_6 => serializer.serialize_str("4/6"),
+            CodeRate::LoRa4_7 => serializer.serialize_str("4/7"),
+            CodeRate::LoRa4_8 => serializer.serialize_str("4/8"),
             _ => serializer.serialize_none(),
         }
     }
@@ -169,18 +169,18 @@ impl PushData {
         let mut j = serde_json::to_vec(&self.payload).unwrap();
         b.append(&mut j);
 
-        return b;
+        b
     }
 }
 
 #[derive(Serialize)]
 pub struct PushDataPayload {
-    pub rxpk: Vec<RXPK>,
+    pub rxpk: Vec<RxPk>,
     pub stat: Option<Stat>,
 }
 
 #[derive(Serialize)]
-pub struct RXPK {
+pub struct RxPk {
     /// UTC time of pkt RX, us precision, ISO 8601 'compact' format
     #[serde(with = "compact_time_format")]
     pub time: DateTime<Utc>,
@@ -194,8 +194,8 @@ pub struct RXPK {
     pub chan: u32,
     /// Concentrator "RF chain" used for RX (unsigned integer)
     pub rfch: u32,
-    /// CRC status: 1 = OK, -1 = fail, 0 = no CRC
-    pub stat: CRC,
+    /// Crc status: 1 = OK, -1 = fail, 0 = no Crc
+    pub stat: Crc,
     /// Modulation identifier "LORA" or "FSK"
     pub modu: Modulation,
     /// LoRa datarate identifier (eg. SF12BW500)}
@@ -212,7 +212,7 @@ pub struct RXPK {
     pub data: String,
 }
 
-impl RXPK {
+impl RxPk {
     pub fn from_proto(up: &chirpstack_api::gw::UplinkFrame) -> Result<Self, String> {
         let rx_info = match &up.rx_info {
             Some(v) => v,
@@ -228,14 +228,14 @@ impl RXPK {
             }
         };
 
-        Ok(RXPK {
-            time: DateTime::from(match &rx_info.time {
+        Ok(RxPk {
+            time: match &rx_info.time {
                 Some(v) => match v.clone().try_into() {
                     Ok(v) => v,
                     Err(_) => Utc::now(),
                 },
                 None => Utc::now(),
-            }),
+            },
             tmms: rx_info
                 .time_since_gps_epoch
                 .as_ref()
@@ -248,11 +248,11 @@ impl RXPK {
             freq: tx_info.frequency as f64 / 1000000.0,
             chan: rx_info.channel,
             rfch: rx_info.rf_chain,
-            stat: CRC::OK,
+            stat: Crc::OK,
             modu: match &tx_info.modulation {
                 Some(v) => match &v.parameters {
                     Some(v) => match &v {
-                        gw::modulation::Parameters::Lora(_) => Modulation::LoRa,
+                        gw::modulation::Parameters::Lora(_) => Modulation::Lora,
                         gw::modulation::Parameters::Fsk(_) => Modulation::Fsk,
                         gw::modulation::Parameters::LrFhss(_) => {
                             return Err("unsupported modulation".to_string());
@@ -270,9 +270,9 @@ impl RXPK {
                 Some(v) => match &v.parameters {
                     Some(v) => match &v {
                         gw::modulation::Parameters::Lora(v) => {
-                            DataRate::LoRa(v.spreading_factor, v.bandwidth)
+                            DataRate::Lora(v.spreading_factor, v.bandwidth)
                         }
-                        gw::modulation::Parameters::Fsk(v) => DataRate::FSK(v.datarate),
+                        gw::modulation::Parameters::Fsk(v) => DataRate::Fsk(v.datarate),
                         gw::modulation::Parameters::LrFhss(_) => {
                             return Err("unsupported modulation".to_string());
                         }
@@ -287,28 +287,22 @@ impl RXPK {
             },
             codr: match &tx_info.modulation {
                 Some(v) => match &v.parameters {
-                    Some(v) => match &v {
-                        gw::modulation::Parameters::Lora(v) => Some(match v.code_rate() {
-                            gw::CodeRate::Cr45 => CodeRate::LoRa4_5,
-                            gw::CodeRate::Cr46 => CodeRate::LoRa4_6,
-                            gw::CodeRate::Cr47 => CodeRate::LoRa4_7,
-                            gw::CodeRate::Cr48 => CodeRate::LoRa4_8,
-                            _ => CodeRate::Undefined,
-                        }),
-                        _ => None,
-                    },
-                    None => None,
+                    Some(gw::modulation::Parameters::Lora(v)) => Some(match v.code_rate() {
+                        gw::CodeRate::Cr45 => CodeRate::LoRa4_5,
+                        gw::CodeRate::Cr46 => CodeRate::LoRa4_6,
+                        gw::CodeRate::Cr47 => CodeRate::LoRa4_7,
+                        gw::CodeRate::Cr48 => CodeRate::LoRa4_8,
+                        _ => CodeRate::Undefined,
+                    }),
+                    _ => None,
                 },
                 None => None,
             },
             rssi: rx_info.rssi,
             lsnr: match &tx_info.modulation {
                 Some(v) => match &v.parameters {
-                    Some(v) => match &v {
-                        gw::modulation::Parameters::Lora(_) => Some(rx_info.snr as f32),
-                        _ => None,
-                    },
-                    None => None,
+                    Some(gw::modulation::Parameters::Lora(_)) => Some(rx_info.snr),
+                    _ => None,
                 },
                 None => None,
             },
@@ -331,7 +325,7 @@ pub struct Stat {
     pub alti: u32,
     /// Number of radio packets received (unsigned integer).
     pub rxnb: u32,
-    /// Number of radio packets received with a valid PHY CRC.
+    /// Number of radio packets received with a valid PHY Crc.
     pub rxok: u32,
     /// Number of radio packets forwarded (unsigned integer).
     pub rxfw: u32,
@@ -382,19 +376,18 @@ pub struct PushAck {
 impl PushAck {
     pub fn from_bytes(b: &[u8]) -> Result<Self, String> {
         if b.len() != 4 {
-            return Err(format!("expected 4 bytes, got: {}", b.len()).to_string());
+            return Err(format!("expected 4 bytes, got: {}", b.len()));
         }
 
         if b[0] != PROTOCOL_VERSION {
             return Err(format!(
                 "expected protocol version: {}, got: {}",
                 PROTOCOL_VERSION, b[0]
-            )
-            .to_string());
+            ));
         }
 
         if b[3] != 0x01 {
-            return Err(format!("invalid identifier: {}", b[3]).to_string());
+            return Err(format!("invalid identifier: {}", b[3]));
         }
 
         let mut rt: [u8; 2] = [0; 2];
@@ -419,7 +412,7 @@ impl PullData {
         b.push(0x02);
         b.append(&mut self.gateway_id.to_vec());
 
-        return b;
+        b
     }
 }
 
@@ -430,19 +423,18 @@ pub struct PullAck {
 impl PullAck {
     pub fn from_bytes(b: &[u8]) -> Result<Self, String> {
         if b.len() != 4 {
-            return Err(format!("expected 4 bytes, got: {}", b.len()).to_string());
+            return Err(format!("expected 4 bytes, got: {}", b.len()));
         }
 
         if b[0] != PROTOCOL_VERSION {
             return Err(format!(
                 "expected protocol version: {}, got: {}",
                 PROTOCOL_VERSION, b[0]
-            )
-            .to_string());
+            ));
         }
 
         if b[3] != 0x04 {
-            return Err(format!("invalid identifier: {}", b[3]).to_string());
+            return Err(format!("invalid identifier: {}", b[3]));
         }
 
         let mut rt: [u8; 2] = [0; 2];
@@ -462,19 +454,18 @@ pub struct PullResp {
 impl PullResp {
     pub fn from_bytes(b: &[u8]) -> Result<Self, String> {
         if b.len() < 5 {
-            return Err(format!("expected at least 5 bytes, got: {}", b.len()).to_string());
+            return Err(format!("expected at least 5 bytes, got: {}", b.len()));
         }
 
         if b[0] != PROTOCOL_VERSION {
             return Err(format!(
                 "expected protocol version: {}, got: {}",
                 PROTOCOL_VERSION, b[0]
-            )
-            .to_string());
+            ));
         }
 
         if b[3] != 0x03 {
-            return Err(format!("invalid identifier: {}", b[3]).to_string());
+            return Err(format!("invalid identifier: {}", b[3]));
         }
 
         let mut rt: [u8; 2] = [0; 2];
@@ -496,11 +487,11 @@ impl PullResp {
 
 #[derive(Deserialize)]
 pub struct PullRespPayload {
-    pub txpk: TXPK,
+    pub txpk: TxPk,
 }
 
 #[derive(Deserialize)]
-pub struct TXPK {
+pub struct TxPk {
     /// Send packet immediately (will ignore tmst & time).
     pub imme: Option<bool>,
     /// Send packet on a certain timestamp value (will ignore time).
@@ -529,11 +520,11 @@ pub struct TXPK {
     pub size: u8,
     /// Base64 encoded RF packet payload, padding optional.
     pub data: String,
-    /// If true, disable the CRC of the physical layer (optional).
+    /// If true, disable the Crc of the physical layer (optional).
     pub ncrc: Option<bool>,
 }
 
-impl TXPK {
+impl TxPk {
     pub fn to_proto(
         &self,
         downlink_id: u32,
@@ -544,8 +535,8 @@ impl TXPK {
             power: self.powe as i32,
             modulation: Some(gw::Modulation {
                 parameters: Some(match self.modu {
-                    Modulation::LoRa => match self.datr {
-                        DataRate::LoRa(sf, bw) => {
+                    Modulation::Lora => match self.datr {
+                        DataRate::Lora(sf, bw) => {
                             gw::modulation::Parameters::Lora(gw::LoraModulationInfo {
                                 bandwidth: bw,
                                 spreading_factor: sf,
@@ -566,7 +557,7 @@ impl TXPK {
                         }
                     },
                     Modulation::Fsk => match self.datr {
-                        DataRate::FSK(v) => {
+                        DataRate::Fsk(v) => {
                             gw::modulation::Parameters::Fsk(gw::FskModulationInfo {
                                 datarate: v,
                                 frequency_deviation: self.fdev.unwrap_or(0),
@@ -583,7 +574,7 @@ impl TXPK {
             timing: Some(gw::Timing {
                 parameters: Some(if self.imme.unwrap_or(false) {
                     gw::timing::Parameters::Immediately(gw::ImmediatelyTimingInfo {})
-                } else if let Some(_) = self.tmst {
+                } else if self.tmst.is_some() {
                     gw::timing::Parameters::Delay(gw::DelayTimingInfo {
                         delay: Some(pbjson_types::Duration {
                             // This is correct! The delay is already added to the tmst which is
@@ -605,18 +596,18 @@ impl TXPK {
             context: self
                 .tmst
                 .map(|v| v.to_be_bytes().to_vec())
-                .unwrap_or(vec![]),
+                .unwrap_or_default(),
         };
 
         return Ok(chirpstack_api::gw::DownlinkFrame {
-            downlink_id: downlink_id,
+            downlink_id,
             gateway_id: hex::encode(gateway_id),
             items: vec![chirpstack_api::gw::DownlinkFrameItem {
                 tx_info: Some(tx_info),
                 phy_payload: match general_purpose::STANDARD.decode(&self.data) {
                     Ok(v) => v,
                     Err(err) => {
-                        return Err(format!("base64 decode payload error: {}", err).to_string());
+                        return Err(format!("base64 decode payload error: {}", err));
                     }
                 },
                 ..Default::default()
@@ -644,7 +635,7 @@ impl TxAck {
         let mut j = serde_json::to_vec(&self.payload).unwrap();
         b.append(&mut j);
 
-        return b;
+        b
     }
 }
 
@@ -663,7 +654,7 @@ mod expanded_time_format {
     use chrono::{DateTime, Utc};
     use serde::{self, Serializer};
 
-    const FORMAT: &'static str = "%Y-%m-%d %H:%M:%S %Z";
+    const FORMAT: &str = "%Y-%m-%d %H:%M:%S %Z";
 
     pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -678,7 +669,7 @@ mod compact_time_format {
     use chrono::{DateTime, Utc};
     use serde::{self, Serializer};
 
-    const FORMAT: &'static str = "%+";
+    const FORMAT: &str = "%+";
 
     pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -737,7 +728,7 @@ mod tests {
             ..Default::default()
         };
 
-        let rxpk = RXPK::from_proto(&uf).unwrap();
+        let rxpk = RxPk::from_proto(&uf).unwrap();
         let pd = PushData {
             random_token: 123,
             gateway_id: [1, 2, 3, 4, 5, 6, 7, 8],
@@ -793,7 +784,7 @@ mod tests {
             ..Default::default()
         };
 
-        let rxpk = RXPK::from_proto(&uf).unwrap();
+        let rxpk = RxPk::from_proto(&uf).unwrap();
         let pd = PushData {
             random_token: 123,
             gateway_id: [1, 2, 3, 4, 5, 6, 7, 8],

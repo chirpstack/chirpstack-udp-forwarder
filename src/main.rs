@@ -33,7 +33,7 @@ fn main() {
         log::Level::from_str(&config.udp_forwarder.log_level).expect("parse log_level error");
 
     logging::setup(
-        &"chirpstack-udp-forwarder",
+        "chirpstack-udp-forwarder",
         log_level,
         config.udp_forwarder.log_to_syslog,
     )
@@ -69,9 +69,9 @@ fn main() {
     }
 
     // metrics
-    if config.udp_forwarder.metrics_bind != "" {
+    if !config.udp_forwarder.metrics_bind.is_empty() {
         threads.push(thread::spawn({
-            let bind = config.udp_forwarder.metrics_bind.clone();
+            let bind = config.udp_forwarder.metrics_bind;
             move || metrics::start(bind)
         }));
     }

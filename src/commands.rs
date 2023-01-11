@@ -10,5 +10,5 @@ pub fn get_socket(endpoint: &str) -> Result<zmq::Socket, zmq::Error> {
     let sock = zmq_ctx.socket(zmq::REQ)?;
     sock.connect(endpoint)?;
 
-    return Ok(sock);
+    Ok(sock)
 }

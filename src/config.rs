@@ -2,7 +2,7 @@ use std::fs;
 
 use serde::Deserialize;
 
-pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Deserialize, Default)]
 pub struct UdpForwarder {
@@ -39,7 +39,7 @@ impl Configuration {
         for file_name in filenames {
             content.push_str(&match fs::read_to_string(file_name) {
                 Ok(v) => v,
-                Err(err) => return Err(format!("read config file error: {}", err).to_string()),
+                Err(err) => return Err(format!("read config file error: {}", err)),
             });
         }
 
@@ -48,6 +48,6 @@ impl Configuration {
             Err(err) => return Err(format!("parse config file error: {}", err)),
         };
 
-        return Ok(config);
+        Ok(config)
     }
 }

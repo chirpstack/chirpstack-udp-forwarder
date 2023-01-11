@@ -18,5 +18,5 @@ pub fn get_gateway_id(command_url: &str) -> Result<Vec<u8>, String> {
 
     // read 'gateway_id' response
     let gateway_id = sock.recv_bytes(0).unwrap();
-    return Ok(gateway_id);
+    Ok(gateway_id)
 }

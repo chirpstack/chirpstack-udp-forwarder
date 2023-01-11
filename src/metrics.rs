@@ -69,7 +69,7 @@ fn handle_request(stream: TcpStream) {
 
 fn handle_read(mut stream: &TcpStream) {
     let mut buffer = [0; 1024];
-    stream.read(&mut buffer).unwrap();
+    let _ = stream.read(&mut buffer).unwrap();
 }
 
 fn handle_write(mut stream: TcpStream) {
@@ -89,6 +89,5 @@ fn handle_write(mut stream: TcpStream) {
 
     if let Err(err) = stream.write(&buffer) {
         error!("Write metrics error: {}", err);
-        return;
     };
 }
