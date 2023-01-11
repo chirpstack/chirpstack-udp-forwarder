@@ -1,6 +1,5 @@
 FROM rust:1.66.0-buster
 
-# required by bingen
 RUN apt-get update && \
 	apt-get install -y \
 		build-essential \
@@ -8,15 +7,19 @@ RUN apt-get update && \
 		clang \
 		libclang-dev \
 		llvm-dev \
-		git && \
+		git \
+		protobuf-compiler && \
 	apt-get clean
 
+RUN rustup component add rustfmt clippy
 RUN rustup target add armv5te-unknown-linux-gnueabi
 RUN rustup target add arm-unknown-linux-gnueabihf
 RUN cargo install cargo-bitbake
 
-RUN mkdir -p /tmp
-RUN cd /tmp && git clone https://github.com/seife/opkg-utils.git && cd /tmp/opkg-utils && PREFIX=/usr make install
+# Install opkg-utils
+RUN git clone git://git.yoctoproject.org/opkg-utils /opt/opkg-utils && \
+	cd /opt/opkg-utils && \
+	make install
 
 ENV LLVM_CONFIG_PATH=llvm-config
 ENV PROJECT_PATH=/chirpstack-udp-forwarder
