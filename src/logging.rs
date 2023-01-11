@@ -1,8 +1,9 @@
 use std::process;
 
+use anyhow::Result;
 use syslog::{BasicLogger, Facility, Formatter3164};
 
-pub fn setup(name: &str, level: log::Level, syslog: bool) -> Result<(), String> {
+pub fn setup(name: &str, level: log::Level, syslog: bool) -> Result<()> {
     if syslog {
         let formatter = Formatter3164 {
             facility: Facility::LOG_USER,
@@ -12,7 +13,7 @@ pub fn setup(name: &str, level: log::Level, syslog: bool) -> Result<(), String> 
         };
         let logger = match syslog::unix(formatter) {
             Ok(v) => v,
-            Err(err) => return Err(format!("create syslog logger error: {}", err)),
+            Err(err) => return Err(anyhow!("create syslog logger error: {}", err)),
         };
 
         log::set_boxed_logger(Box::new(BasicLogger::new(logger)))

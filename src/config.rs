@@ -1,5 +1,6 @@
 use std::fs;
 
+use anyhow::Result;
 use serde::Deserialize;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -33,19 +34,19 @@ pub struct Configuration {
 }
 
 impl Configuration {
-    pub fn get(filenames: &[String]) -> Result<Configuration, String> {
+    pub fn get(filenames: &[String]) -> Result<Configuration> {
         let mut content: String = String::new();
 
         for file_name in filenames {
             content.push_str(&match fs::read_to_string(file_name) {
                 Ok(v) => v,
-                Err(err) => return Err(format!("read config file error: {}", err)),
+                Err(err) => return Err(anyhow!("read config file error: {}", err)),
             });
         }
 
         let config: Configuration = match toml::from_str(&content) {
             Ok(v) => v,
-            Err(err) => return Err(format!("parse config file error: {}", err)),
+            Err(err) => return Err(anyhow!("parse config file error: {}", err)),
         };
 
         Ok(config)

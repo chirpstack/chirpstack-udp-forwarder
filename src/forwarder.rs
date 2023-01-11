@@ -3,6 +3,7 @@ use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
+use anyhow::Result;
 use prost::Message;
 use rand::Rng;
 
@@ -409,7 +410,7 @@ fn events_up(state: &Arc<State>, up: chirpstack_api::gw::UplinkFrame) {
     metrics::incr_udp_sent_bytes(&state.server, "PUSH_DATA_RXPK", bytes.len());
 }
 
-fn handle_push_ack(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
+fn handle_push_ack(state: &Arc<State>, data: &[u8]) -> Result<()> {
     let push_ack = structs::PushAck::from_bytes(data)?;
     let expected_token = state.get_push_data_token();
 
@@ -425,7 +426,7 @@ fn handle_push_ack(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-fn handle_pull_ack(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
+fn handle_pull_ack(state: &Arc<State>, data: &[u8]) -> Result<()> {
     let push_ack = structs::PullAck::from_bytes(data)?;
     let expected_token = state.get_pull_data_token();
     state.set_pull_data_token_acked(push_ack.random_token);
@@ -440,7 +441,7 @@ fn handle_pull_ack(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
+fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<()> {
     let pull_resp = structs::PullResp::from_bytes(data)?;
     let sock = state.command_sock.lock().unwrap();
 
@@ -451,7 +452,7 @@ fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
     {
         Ok(v) => v,
         Err(err) => {
-            return Err(format!("TxPk to proto error: {}", err));
+            return Err(anyhow!("TxPk to proto error: {}", err));
         }
     };
 
@@ -466,7 +467,7 @@ fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
     let mut items = [sock.as_poll_item(zmq::POLLIN)];
     zmq::poll(&mut items, 100).unwrap();
     if !items[0].is_readable() {
-        return Err("could not read down response".to_string());
+        return Err(anyhow!("could not read down response"));
     }
 
     // read tx ack response.
@@ -474,7 +475,7 @@ fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
     let tx_ack = match chirpstack_api::gw::DownlinkTxAck::decode(resp_b) {
         Ok(v) => v,
         Err(err) => {
-            return Err(format!("decode DownlinkTxAck error: {}", err));
+            return Err(anyhow!("decode DownlinkTxAck error: {}", err));
         }
     };
 
@@ -490,7 +491,7 @@ fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<(), String> {
             txpk_ack: structs::TxAckPayloadError {
                 error: {
                     if tx_ack.items.len() != 1 {
-                        return Err("".to_string());
+                        return Err(anyhow!(""));
                     }
 
                     match tx_ack.items[0].status() {

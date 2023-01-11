@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 use std::time::Duration;
 
+use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use serde::de::Error;
@@ -213,18 +214,18 @@ pub struct RxPk {
 }
 
 impl RxPk {
-    pub fn from_proto(up: &chirpstack_api::gw::UplinkFrame) -> Result<Self, String> {
+    pub fn from_proto(up: &chirpstack_api::gw::UplinkFrame) -> Result<Self> {
         let rx_info = match &up.rx_info {
             Some(v) => v,
             None => {
-                return Err("rx_info must not be None".to_string());
+                return Err(anyhow!("rx_info must not be None"));
             }
         };
 
         let tx_info = match &up.tx_info {
             Some(v) => v,
             None => {
-                return Err("tx_info must not be None".to_string());
+                return Err(anyhow!("tx_info must not be None"));
             }
         };
 
@@ -255,15 +256,15 @@ impl RxPk {
                         gw::modulation::Parameters::Lora(_) => Modulation::Lora,
                         gw::modulation::Parameters::Fsk(_) => Modulation::Fsk,
                         gw::modulation::Parameters::LrFhss(_) => {
-                            return Err("unsupported modulation".to_string());
+                            return Err(anyhow!("unsupported modulation"));
                         }
                     },
                     None => {
-                        return Err("parameters must not be None".to_string());
+                        return Err(anyhow!("parameters must not be None"));
                     }
                 },
                 None => {
-                    return Err("modulation_info must not be None".to_string());
+                    return Err(anyhow!("modulation_info must not be None"));
                 }
             },
             datr: match &tx_info.modulation {
@@ -274,15 +275,15 @@ impl RxPk {
                         }
                         gw::modulation::Parameters::Fsk(v) => DataRate::Fsk(v.datarate),
                         gw::modulation::Parameters::LrFhss(_) => {
-                            return Err("unsupported modulation".to_string());
+                            return Err(anyhow!("unsupported modulation"));
                         }
                     },
                     None => {
-                        return Err("parameters must not be None".to_string());
+                        return Err(anyhow!("parameters must not be None"));
                     }
                 },
                 None => {
-                    return Err("modulation_info must not be None".to_string());
+                    return Err(anyhow!("modulation_info must not be None"));
                 }
             },
             codr: match &tx_info.modulation {
@@ -338,7 +339,7 @@ pub struct Stat {
 }
 
 impl Stat {
-    pub fn from_proto(stats: &chirpstack_api::gw::GatewayStats) -> Result<Self, String> {
+    pub fn from_proto(stats: &chirpstack_api::gw::GatewayStats) -> Result<Self> {
         Ok(Stat {
             time: match &stats.time {
                 Some(v) => match v.clone().try_into() {
@@ -374,20 +375,21 @@ pub struct PushAck {
 }
 
 impl PushAck {
-    pub fn from_bytes(b: &[u8]) -> Result<Self, String> {
+    pub fn from_bytes(b: &[u8]) -> Result<Self> {
         if b.len() != 4 {
-            return Err(format!("expected 4 bytes, got: {}", b.len()));
+            return Err(anyhow!("expected 4 bytes, got: {}", b.len()));
         }
 
         if b[0] != PROTOCOL_VERSION {
-            return Err(format!(
+            return Err(anyhow!(
                 "expected protocol version: {}, got: {}",
-                PROTOCOL_VERSION, b[0]
+                PROTOCOL_VERSION,
+                b[0]
             ));
         }
 
         if b[3] != 0x01 {
-            return Err(format!("invalid identifier: {}", b[3]));
+            return Err(anyhow!("invalid identifier: {}", b[3]));
         }
 
         let mut rt: [u8; 2] = [0; 2];
@@ -421,20 +423,21 @@ pub struct PullAck {
 }
 
 impl PullAck {
-    pub fn from_bytes(b: &[u8]) -> Result<Self, String> {
+    pub fn from_bytes(b: &[u8]) -> Result<Self> {
         if b.len() != 4 {
-            return Err(format!("expected 4 bytes, got: {}", b.len()));
+            return Err(anyhow!("expected 4 bytes, got: {}", b.len()));
         }
 
         if b[0] != PROTOCOL_VERSION {
-            return Err(format!(
+            return Err(anyhow!(
                 "expected protocol version: {}, got: {}",
-                PROTOCOL_VERSION, b[0]
+                PROTOCOL_VERSION,
+                b[0]
             ));
         }
 
         if b[3] != 0x04 {
-            return Err(format!("invalid identifier: {}", b[3]));
+            return Err(anyhow!("invalid identifier: {}", b[3]));
         }
 
         let mut rt: [u8; 2] = [0; 2];
@@ -452,31 +455,27 @@ pub struct PullResp {
 }
 
 impl PullResp {
-    pub fn from_bytes(b: &[u8]) -> Result<Self, String> {
+    pub fn from_bytes(b: &[u8]) -> Result<Self> {
         if b.len() < 5 {
-            return Err(format!("expected at least 5 bytes, got: {}", b.len()));
+            return Err(anyhow!("expected at least 5 bytes, got: {}", b.len()));
         }
 
         if b[0] != PROTOCOL_VERSION {
-            return Err(format!(
+            return Err(anyhow!(
                 "expected protocol version: {}, got: {}",
-                PROTOCOL_VERSION, b[0]
+                PROTOCOL_VERSION,
+                b[0]
             ));
         }
 
         if b[3] != 0x03 {
-            return Err(format!("invalid identifier: {}", b[3]));
+            return Err(anyhow!("invalid identifier: {}", b[3]));
         }
 
         let mut rt: [u8; 2] = [0; 2];
         rt.copy_from_slice(&b[1..3]);
 
-        let pl: PullRespPayload = match serde_json::from_slice(&b[4..]) {
-            Ok(v) => v,
-            Err(err) => {
-                return Err(err.to_string());
-            }
-        };
+        let pl: PullRespPayload = serde_json::from_slice(&b[4..])?;
 
         Ok(PullResp {
             random_token: u16::from_be_bytes(rt),
@@ -529,7 +528,7 @@ impl TxPk {
         &self,
         downlink_id: u32,
         gateway_id: Vec<u8>,
-    ) -> Result<chirpstack_api::gw::DownlinkFrame, String> {
+    ) -> Result<chirpstack_api::gw::DownlinkFrame> {
         let tx_info = chirpstack_api::gw::DownlinkTxInfo {
             frequency: (self.freq * 1_000_000.0) as u32,
             power: self.powe as i32,
@@ -553,7 +552,7 @@ impl TxPk {
                             })
                         }
                         _ => {
-                            return Err("LoRa DataRate expected".to_string());
+                            return Err(anyhow!("LoRa DataRate expected"));
                         }
                     },
                     Modulation::Fsk => match self.datr {
@@ -564,7 +563,7 @@ impl TxPk {
                             })
                         }
                         _ => {
-                            return Err("FSK DataRate expected".to_string());
+                            return Err(anyhow!("FSK DataRate expected"));
                         }
                     },
                 }),
@@ -590,7 +589,7 @@ impl TxPk {
                         )),
                     })
                 } else {
-                    return Err("no timing information found".to_string());
+                    return Err(anyhow!("no timing information found"));
                 }),
             }),
             context: self
@@ -607,7 +606,7 @@ impl TxPk {
                 phy_payload: match general_purpose::STANDARD.decode(&self.data) {
                     Ok(v) => v,
                     Err(err) => {
-                        return Err(format!("base64 decode payload error: {}", err));
+                        return Err(anyhow!("base64 decode payload error: {}", err));
                     }
                 },
                 ..Default::default()

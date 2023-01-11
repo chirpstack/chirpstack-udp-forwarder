@@ -1,6 +1,8 @@
+use anyhow::Result;
+
 use super::socket::ZMQ_CONTEXT;
 
-pub fn get_socket(endpoint: &str) -> Result<zmq::Socket, zmq::Error> {
+pub fn get_socket(endpoint: &str) -> Result<zmq::Socket> {
     info!(
         "Creating new socket for sending commands, endpoint: {}",
         endpoint

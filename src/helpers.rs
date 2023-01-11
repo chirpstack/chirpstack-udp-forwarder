@@ -1,6 +1,8 @@
+use anyhow::Result;
+
 use super::commands;
 
-pub fn get_gateway_id(command_url: &str) -> Result<Vec<u8>, String> {
+pub fn get_gateway_id(command_url: &str) -> Result<Vec<u8>> {
     debug!("Reading gateway id, server: {}", command_url);
 
     let sock = commands::get_socket(command_url).expect("get client error");
@@ -13,7 +15,7 @@ pub fn get_gateway_id(command_url: &str) -> Result<Vec<u8>, String> {
     let mut items = [sock.as_poll_item(zmq::POLLIN)];
     zmq::poll(&mut items, 100).unwrap();
     if !items[0].is_readable() {
-        return Err("could not read gateway_id".to_string());
+        return Err(anyhow!("could not read gateway_id"));
     }
 
     // read 'gateway_id' response

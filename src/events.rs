@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use anyhow::Result;
 use prost::Message;
 
 use super::socket::ZMQ_CONTEXT;
@@ -60,44 +61,35 @@ impl Iterator for Reader<'_> {
         let msg = self.sub_sock.recv_multipart(0).unwrap();
         match handle_message(msg) {
             Ok(v) => Some(v),
-            Err(err) => Some(Event::Error(err)),
+            Err(err) => Some(Event::Error(err.to_string())),
         }
     }
 }
 
-fn handle_message(msg: Vec<Vec<u8>>) -> Result<Event, String> {
+fn handle_message(msg: Vec<Vec<u8>>) -> Result<Event> {
     if msg.len() != 2 {
-        return Err("event must have two frames".to_string());
+        return Err(anyhow!("Event must have two frames"));
     }
 
-    let event = match String::from_utf8(msg[0].clone()) {
-        Ok(v) => v,
-        Err(err) => return Err(err.to_string()),
-    };
+    let event = String::from_utf8(msg[0].clone())?;
 
     Ok(match event.as_str() {
         "up" => match parse_up(&msg[1]) {
             Ok(v) => Event::Uplink(Box::new(v)),
-            Err(err) => Event::Error(err),
+            Err(err) => Event::Error(err.to_string()),
         },
         "stats" => match parse_stats(&msg[1]) {
             Ok(v) => Event::Stats(Box::new(v)),
-            Err(err) => Event::Error(err),
+            Err(err) => Event::Error(err.to_string()),
         },
         _ => Event::Unknown(event, msg[1].clone()),
     })
 }
 
-fn parse_up(msg: &[u8]) -> Result<chirpstack_api::gw::UplinkFrame, String> {
-    match chirpstack_api::gw::UplinkFrame::decode(msg) {
-        Ok(v) => Ok(v),
-        Err(err) => Err(err.to_string()),
-    }
+fn parse_up(msg: &[u8]) -> Result<chirpstack_api::gw::UplinkFrame> {
+    Ok(chirpstack_api::gw::UplinkFrame::decode(msg)?)
 }
 
-fn parse_stats(msg: &[u8]) -> Result<chirpstack_api::gw::GatewayStats, String> {
-    match chirpstack_api::gw::GatewayStats::decode(msg) {
-        Ok(v) => Ok(v),
-        Err(err) => Err(err.to_string()),
-    }
+fn parse_stats(msg: &[u8]) -> Result<chirpstack_api::gw::GatewayStats> {
+    Ok(chirpstack_api::gw::GatewayStats::decode(msg)?)
 }
