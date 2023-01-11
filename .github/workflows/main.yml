@@ -4,6 +4,19 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Run the tests
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+      -
+        name: Cargo cache
+        uses: actions/cache@v3
+        with:
+          path: .rust/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      -
+        name: Run the tests
         run: make test
+      -
+        name: Make cache accessible to caching action
+        run: |
+          sudo chown $(whoami):$(whoami) -R .rust
