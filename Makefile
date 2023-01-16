@@ -21,4 +21,3 @@ test:
 # Enter the devshell.
 devshell:
 	docker-compose run --rm chirpstack-udp-forwarder bash
-
