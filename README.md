@@ -52,6 +52,15 @@ Configuration example:
     # the server address is a hostname.
     keepalive_max_failures=12
 
+	# Forward CRC OK.
+	forward_crc_ok=true
+
+	# Forward CRC invalid.
+	forward_crc_invalid=false
+
+	# Forward CRC missing.
+	forward_crc_missing=false
+
 
 # Concentratord configuration.
 [concentratord]

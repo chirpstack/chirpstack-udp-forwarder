@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
 use anyhow::Result;
+use chirpstack_api::gw;
 use prost::Message;
 use rand::Rng;
 
@@ -17,6 +18,9 @@ use super::structs;
 struct State {
     server: String,
     keepalive_interval: time::Duration,
+    forward_crc_ok: bool,
+    forward_crc_invalid: bool,
+    forward_crc_missing: bool,
     keepalive_max_failures: u32,
     gateway_id: Vec<u8>,
     socket: UdpSocket,
@@ -121,6 +125,9 @@ pub fn start(conf: &Server, event_url: String, command_url: String, gateway_id: 
                 0 => time::Duration::from_secs(5),
                 _ => time::Duration::from_secs(conf.keepalive_interval_secs),
             },
+            forward_crc_ok: conf.forward_crc_ok,
+            forward_crc_invalid: conf.forward_crc_invalid,
+            forward_crc_missing: conf.forward_crc_missing,
             keepalive_max_failures: conf.keepalive_max_failures,
             gateway_id: gateway_id.clone(),
             push_data_token: Mutex::new(0),
@@ -374,6 +381,15 @@ fn events_stats(state: &Arc<State>, stats: chirpstack_api::gw::GatewayStats) {
 }
 
 fn events_up(state: &Arc<State>, up: chirpstack_api::gw::UplinkFrame) {
+    if let Some(rx_info) = &up.rx_info {
+        if !((rx_info.crc_status() == gw::CrcStatus::CrcOk && state.forward_crc_ok)
+            || (rx_info.crc_status() == gw::CrcStatus::BadCrc && state.forward_crc_invalid)
+            || (rx_info.crc_status() == gw::CrcStatus::NoCrc && state.forward_crc_missing))
+        {
+            return;
+        }
+    }
+
     let rxpk = match structs::RxPk::from_proto(&up) {
         Ok(v) => v,
         Err(err) => {

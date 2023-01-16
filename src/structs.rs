@@ -13,7 +13,9 @@ use chirpstack_api::gw;
 const PROTOCOL_VERSION: u8 = 0x02;
 
 pub enum Crc {
-    OK,
+    Ok,
+    Invalid,
+    Missing,
 }
 
 impl Serialize for Crc {
@@ -22,7 +24,9 @@ impl Serialize for Crc {
         S: Serializer,
     {
         match self {
-            Crc::OK => serializer.serialize_i32(1),
+            Crc::Ok => serializer.serialize_i32(1),
+            Crc::Invalid => serializer.serialize_i32(-1),
+            Crc::Missing => serializer.serialize_i32(0),
         }
     }
 }
@@ -249,7 +253,11 @@ impl RxPk {
             freq: tx_info.frequency as f64 / 1000000.0,
             chan: rx_info.channel,
             rfch: rx_info.rf_chain,
-            stat: Crc::OK,
+            stat: match rx_info.crc_status() {
+                gw::CrcStatus::CrcOk => Crc::Ok,
+                gw::CrcStatus::BadCrc => Crc::Invalid,
+                gw::CrcStatus::NoCrc => Crc::Missing,
+            },
             modu: match &tx_info.modulation {
                 Some(v) => match &v.parameters {
                     Some(v) => match &v {
@@ -704,6 +712,7 @@ mod tests {
             rf_chain: 1,
             antenna: 3,
             context: vec![1, 2, 3, 4],
+            crc_status: gw::CrcStatus::CrcOk.into(),
             ..Default::default()
         };
 
@@ -763,6 +772,7 @@ mod tests {
             board: 3,
             antenna: 4,
             context: vec![1, 2, 3, 4],
+            crc_status: gw::CrcStatus::CrcOk.into(),
             ..Default::default()
         };
 

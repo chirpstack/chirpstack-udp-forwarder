@@ -14,11 +14,27 @@ pub struct UdpForwarder {
     pub servers: Vec<Server>,
 }
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize)]
 pub struct Server {
     pub server: String,
     pub keepalive_interval_secs: u64,
     pub keepalive_max_failures: u32,
+    pub forward_crc_ok: bool,
+    pub forward_crc_invalid: bool,
+    pub forward_crc_missing: bool,
+}
+
+impl Default for Server {
+    fn default() -> Self {
+        Server {
+            server: "127.0.0.1:1700".into(),
+            keepalive_interval_secs: 10,
+            keepalive_max_failures: 12,
+            forward_crc_ok: true,
+            forward_crc_invalid: false,
+            forward_crc_missing: false,
+        }
+    }
 }
 
 #[derive(Deserialize, Default)]
