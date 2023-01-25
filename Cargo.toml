@@ -9,7 +9,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
-chirpstack_api = { version = "4.2.0-test.1", default-features = false }
+chirpstack_api = { version = "4.2.0", default-features = false }
 serde_json = "1.0"
 zmq = "0.10"
 clap = { version = "4.1", default-features = false, features = ["std", "help", "usage", "derive"] }
