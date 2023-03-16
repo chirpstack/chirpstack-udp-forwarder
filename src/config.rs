@@ -5,7 +5,8 @@ use serde::Deserialize;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize)]
+#[serde(default)]
 pub struct UdpForwarder {
     pub log_level: String,
     #[serde(default)]
@@ -14,7 +15,19 @@ pub struct UdpForwarder {
     pub servers: Vec<Server>,
 }
 
+impl Default for UdpForwarder {
+    fn default() -> Self {
+        UdpForwarder {
+            log_level: "INFO".to_string(),
+            log_to_syslog: false,
+            metrics_bind: "".to_string(),
+            servers: vec![],
+        }
+    }
+}
+
 #[derive(Deserialize)]
+#[serde(default)]
 pub struct Server {
     pub server: String,
     pub keepalive_interval_secs: u64,
@@ -37,10 +50,20 @@ impl Default for Server {
     }
 }
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize)]
+#[serde(default)]
 pub struct Concentratord {
     pub event_url: String,
     pub command_url: String,
+}
+
+impl Default for Concentratord {
+    fn default() -> Self {
+        Concentratord {
+            event_url: "ipc:///tmp/concentratord_event".to_string(),
+            command_url: "ipc:///tmp/concentratord_command".to_string(),
+        }
+    }
 }
 
 #[derive(Deserialize)]
