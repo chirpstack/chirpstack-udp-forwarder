@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 use std::time::Duration;
+use std::time::SystemTime;
 
 use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
@@ -235,8 +236,8 @@ impl RxPk {
 
         Ok(RxPk {
             time: match &rx_info.time {
-                Some(v) => match v.clone().try_into() {
-                    Ok(v) => v,
+                Some(v) => match TryInto::<SystemTime>::try_into(v.clone()) {
+                    Ok(v) => v.into(),
                     Err(_) => Utc::now(),
                 },
                 None => Utc::now(),
@@ -350,8 +351,8 @@ impl Stat {
     pub fn from_proto(stats: &chirpstack_api::gw::GatewayStats) -> Result<Self> {
         Ok(Stat {
             time: match &stats.time {
-                Some(v) => match v.clone().try_into() {
-                    Ok(v) => v,
+                Some(v) => match TryInto::<SystemTime>::try_into(v.clone()) {
+                    Ok(v) => v.into(),
                     Err(_) => Utc::now(),
                 },
                 None => Utc::now(),
@@ -583,7 +584,7 @@ impl TxPk {
                     gw::timing::Parameters::Immediately(gw::ImmediatelyTimingInfo {})
                 } else if self.tmst.is_some() {
                     gw::timing::Parameters::Delay(gw::DelayTimingInfo {
-                        delay: Some(pbjson_types::Duration {
+                        delay: Some(prost_types::Duration {
                             // This is correct! The delay is already added to the tmst which is
                             // used to set the context.
                             seconds: 0,
@@ -592,9 +593,7 @@ impl TxPk {
                     })
                 } else if let Some(v) = self.tmms {
                     gw::timing::Parameters::GpsEpoch(gw::GpsEpochTimingInfo {
-                        time_since_gps_epoch: Some(pbjson_types::Duration::from(
-                            Duration::from_millis(v),
-                        )),
+                        time_since_gps_epoch: Some(Duration::from_millis(v).try_into()?),
                     })
                 } else {
                     return Err(anyhow!("no timing information found"));
@@ -691,7 +690,6 @@ mod compact_time_format {
 mod tests {
     use super::*;
 
-    use chrono::{DateTime, Utc};
     use std::str;
     use std::time::{Duration, SystemTime};
 
@@ -699,12 +697,10 @@ mod tests {
 
     #[test]
     fn test_push_data_rxpk_lora() {
-        let now: DateTime<Utc> = DateTime::from(SystemTime::UNIX_EPOCH);
-
         let rx_info = gw::UplinkRxInfo {
             gateway_id: "0102030405060708".into(),
-            time: Some(pbjson_types::Timestamp::from(now)),
-            time_since_gps_epoch: Some(pbjson_types::Duration::from(Duration::from_secs(1))),
+            time: Some(SystemTime::UNIX_EPOCH.try_into().unwrap()),
+            time_since_gps_epoch: Some(Duration::from_secs(1).try_into().unwrap()),
             rssi: -160,
             snr: 5.5,
             board: 2,
@@ -760,12 +756,10 @@ mod tests {
 
     #[test]
     fn test_push_data_rxpk_fsk() {
-        let now: DateTime<Utc> = DateTime::from(SystemTime::UNIX_EPOCH);
-
         let rx_info = gw::UplinkRxInfo {
             gateway_id: "0102030405060708".into(),
-            time: Some(pbjson_types::Timestamp::from(now)),
-            time_since_gps_epoch: Some(pbjson_types::Duration::from(Duration::from_secs(1))),
+            time: Some(SystemTime::UNIX_EPOCH.try_into().unwrap()),
+            time_since_gps_epoch: Some(Duration::from_secs(1).try_into().unwrap()),
             rssi: -160,
             channel: 1,
             rf_chain: 2,
@@ -817,11 +811,9 @@ mod tests {
 
     #[test]
     fn test_push_data_stat() {
-        let now: DateTime<Utc> = DateTime::from(SystemTime::UNIX_EPOCH);
-
         let gs = gw::GatewayStats {
             gateway_id: "0102030405060708".into(),
-            time: Some(pbjson_types::Timestamp::from(now)),
+            time: Some(SystemTime::UNIX_EPOCH.try_into().unwrap()),
             location: Some(common::Location {
                 latitude: 1.123,
                 longitude: 2.123,
@@ -988,7 +980,7 @@ mod tests {
             context: vec![0, 76, 75, 64], // == 5000000
             timing: Some(gw::Timing {
                 parameters: Some(gw::timing::Parameters::Delay(gw::DelayTimingInfo {
-                    delay: Some(pbjson_types::Duration::from(Duration::from_secs(0))),
+                    delay: Some(Duration::from_secs(0).try_into().unwrap()),
                 })),
             }),
             modulation: Some(gw::Modulation {
@@ -1056,9 +1048,7 @@ mod tests {
             context: vec![],
             timing: Some(gw::Timing {
                 parameters: Some(gw::timing::Parameters::GpsEpoch(gw::GpsEpochTimingInfo {
-                    time_since_gps_epoch: Some(pbjson_types::Duration::from(Duration::from_secs(
-                        5000,
-                    ))),
+                    time_since_gps_epoch: Some(Duration::from_secs(5000).try_into().unwrap()),
                 })),
             }),
             modulation: Some(gw::Modulation {
@@ -1125,7 +1115,7 @@ mod tests {
             context: vec![0, 76, 75, 64], // == 5000000
             timing: Some(gw::Timing {
                 parameters: Some(gw::timing::Parameters::Delay(gw::DelayTimingInfo {
-                    delay: Some(pbjson_types::Duration::from(Duration::from_secs(0))),
+                    delay: Some(Duration::from_secs(0).try_into().unwrap()),
                 })),
             }),
             modulation: Some(gw::Modulation {
