@@ -176,6 +176,7 @@ impl PushData {
 #[derive(Serialize)]
 pub struct PushDataPayload {
     pub rxpk: Vec<RXPK>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stat: Option<Stat>,
 }
 
