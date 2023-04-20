@@ -187,6 +187,7 @@ pub struct RXPK {
     /// GPS time of pkt RX, number of milliseconds since 06.Jan.1980
     pub tmms: Option<u64>,
     /// Internal timestamp of "RX finished" event (32b unsigned)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tmst: u32,
     /// RX central frequency in MHz (unsigned float, Hz precision)
     pub freq: f64,
