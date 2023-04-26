@@ -202,10 +202,12 @@ pub struct RXPK {
     /// LoRa datarate identifier (eg. SF12BW500)}
     pub datr: DataRate,
     /// LoRa coding rate.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub codr: Option<CodeRate>,
     /// RSSI in dBm (signed integer, 1 dB precision).
     pub rssi: i32,
     /// Lora SNR ratio in dB (signed float, 0.1 dB precision).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lsnr: Option<f32>,
     /// RF packet payload size in bytes (unsigned integer).
     pub size: u8,
