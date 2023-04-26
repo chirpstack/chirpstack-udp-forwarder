@@ -778,7 +778,7 @@ mod tests {
 
         assert_eq!(
             str::from_utf8(&b[12..]).unwrap(),
-            r#"{"rxpk":[{"time":"1970-01-01T00:00:00+00:00","tmms":1000,"tmst":16909060,"freq":868.3,"chan":1,"rfch":1,"stat":1,"modu":"LORA","datr":"SF12BW125","codr":"4/5","rssi":-160,"lsnr":5.5,"size":3,"data":"AQID"}],"stat":null}"#
+            r#"{"rxpk":[{"time":"1970-01-01T00:00:00+00:00","tmms":1000,"tmst":16909060,"freq":868.3,"chan":1,"rfch":1,"stat":1,"modu":"LORA","datr":"SF12BW125","codr":"4/5","rssi":-160,"lsnr":5.5,"size":3,"data":"AQID"}]}"#
         );
     }
 
@@ -837,7 +837,7 @@ mod tests {
 
         assert_eq!(
             str::from_utf8(&b[12..]).unwrap(),
-            r#"{"rxpk":[{"time":"1970-01-01T00:00:00+00:00","tmms":1000,"tmst":16909060,"freq":868.3,"chan":1,"rfch":2,"stat":1,"modu":"FSK","datr":50000,"codr":null,"rssi":-160,"lsnr":null,"size":3,"data":"AQID"}],"stat":null}"#
+            r#"{"rxpk":[{"time":"1970-01-01T00:00:00+00:00","tmms":1000,"tmst":16909060,"freq":868.3,"chan":1,"rfch":2,"stat":1,"modu":"FSK","datr":50000,"codr":null,"rssi":-160,"lsnr":null,"size":3,"data":"AQID"}]}"#
         );
     }
 
