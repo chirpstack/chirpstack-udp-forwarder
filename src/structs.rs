@@ -186,6 +186,7 @@ pub struct RXPK {
     #[serde(with = "compact_time_format")]
     pub time: DateTime<Utc>,
     /// GPS time of pkt RX, number of milliseconds since 06.Jan.1980
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tmms: Option<u64>,
     /// Internal timestamp of "RX finished" event (32b unsigned)
     pub tmst: u32,
@@ -202,10 +203,12 @@ pub struct RXPK {
     /// LoRa datarate identifier (eg. SF12BW500)}
     pub datr: DataRate,
     /// LoRa coding rate.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub codr: Option<CodeRate>,
     /// RSSI in dBm (signed integer, 1 dB precision).
     pub rssi: i32,
     /// Lora SNR ratio in dB (signed float, 0.1 dB precision).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lsnr: Option<f32>,
     /// RF packet payload size in bytes (unsigned integer).
     pub size: u8,
@@ -837,7 +840,7 @@ mod tests {
 
         assert_eq!(
             str::from_utf8(&b[12..]).unwrap(),
-            r#"{"rxpk":[{"time":"1970-01-01T00:00:00+00:00","tmms":1000,"tmst":16909060,"freq":868.3,"chan":1,"rfch":2,"stat":1,"modu":"FSK","datr":50000,"codr":null,"rssi":-160,"lsnr":null,"size":3,"data":"AQID"}]}"#
+            r#"{"rxpk":[{"time":"1970-01-01T00:00:00+00:00","tmms":1000,"tmst":16909060,"freq":868.3,"chan":1,"rfch":2,"stat":1,"modu":"FSK","datr":50000,"rssi":-160,"size":3,"data":"AQID"}]}"#
         );
     }
 
