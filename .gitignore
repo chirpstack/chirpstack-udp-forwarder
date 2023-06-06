@@ -1,6 +1,7 @@
 # hidden files
 .*
 !/.cargo
+!/.github
 
 # rust buids / cache
 /target
