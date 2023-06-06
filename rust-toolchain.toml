@@ -1,0 +1,5 @@
+[toolchain]
+channel = "1.69.0"
+components = ["rustfmt", "clippy"]
+targets = ["armv5te-unknown-linux-gnueabi", "armv7-unknown-linux-gnueabihf"]
+profile = "default"

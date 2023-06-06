@@ -1,27 +1,6 @@
-FROM rust:1.66.1-buster
+FROM nixos/nix
 
-RUN apt-get update && \
-	apt-get install -y \
-		build-essential \
-		cmake \
-		clang \
-		libclang-dev \
-		llvm-dev \
-		git \
-		protobuf-compiler && \
-	apt-get clean
-
-RUN rustup component add rustfmt clippy
-RUN rustup target add armv5te-unknown-linux-gnueabi
-RUN rustup target add armv7-unknown-linux-gnueabihf
-RUN cargo install cargo-bitbake
-
-# Install opkg-utils
-RUN git clone git://git.yoctoproject.org/opkg-utils /opt/opkg-utils && \
-	cd /opt/opkg-utils && \
-	make install
-
-ENV LLVM_CONFIG_PATH=llvm-config
 ENV PROJECT_PATH=/chirpstack-udp-forwarder
-RUN mkdir -p $PROJECT_PATH
 WORKDIR $PROJECT_PATH
+
+ENTRYPOINT ["nix-shell"]
