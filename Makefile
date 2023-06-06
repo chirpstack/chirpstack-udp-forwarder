@@ -15,9 +15,9 @@ clean:
 
 # Run tests
 test:
-	docker-compose run --rm chirpstack-udp-forwarder cargo clippy --no-deps
-	docker-compose run --rm chirpstack-udp-forwarder cargo test
+	cargo clippy --no-deps
+	cargo test
 
 # Enter the devshell.
 devshell:
-	docker-compose run --rm chirpstack-udp-forwarder bash
+	docker-compose run --rm chirpstack-udp-forwarder
