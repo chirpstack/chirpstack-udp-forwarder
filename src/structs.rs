@@ -609,7 +609,7 @@ impl TxPk {
                 .unwrap_or_default(),
         };
 
-        return Ok(chirpstack_api::gw::DownlinkFrame {
+        Ok(chirpstack_api::gw::DownlinkFrame {
             downlink_id,
             gateway_id: hex::encode(gateway_id),
             items: vec![chirpstack_api::gw::DownlinkFrameItem {
@@ -623,7 +623,7 @@ impl TxPk {
                 ..Default::default()
             }],
             ..Default::default()
-        });
+        })
     }
 }
 
