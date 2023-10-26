@@ -239,7 +239,7 @@ impl RxPk {
         };
 
         Ok(RxPk {
-            time: match &rx_info.time {
+            time: match &rx_info.gw_time {
                 Some(v) => match TryInto::<SystemTime>::try_into(v.clone()) {
                     Ok(v) => v.into(),
                     Err(_) => Utc::now(),
@@ -561,7 +561,9 @@ impl TxPk {
                                 }
                                 .into(),
                                 polarization_inversion: self.ipol.unwrap_or(true),
-                                ..Default::default()
+                                preamble: self.prea.map(|v| v as u32).unwrap_or_default(),
+                                no_crc: self.ncrc.unwrap_or_default(),
+                                code_rate_legacy: "".into(),
                             })
                         }
                         _ => {
@@ -703,7 +705,7 @@ mod tests {
     fn test_push_data_rxpk_lora() {
         let rx_info = gw::UplinkRxInfo {
             gateway_id: "0102030405060708".into(),
-            time: Some(SystemTime::UNIX_EPOCH.try_into().unwrap()),
+            gw_time: Some(SystemTime::UNIX_EPOCH.try_into().unwrap()),
             time_since_gps_epoch: Some(Duration::from_secs(1).try_into().unwrap()),
             rssi: -160,
             snr: 5.5,
@@ -762,7 +764,7 @@ mod tests {
     fn test_push_data_rxpk_fsk() {
         let rx_info = gw::UplinkRxInfo {
             gateway_id: "0102030405060708".into(),
-            time: Some(SystemTime::UNIX_EPOCH.try_into().unwrap()),
+            gw_time: Some(SystemTime::UNIX_EPOCH.try_into().unwrap()),
             time_since_gps_epoch: Some(Duration::from_secs(1).try_into().unwrap()),
             rssi: -160,
             channel: 1,
