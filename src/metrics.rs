@@ -1,32 +1,55 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::RwLock;
 use std::thread;
 
-use prometheus::{Encoder, IntCounterVec, Opts, Registry};
+use prometheus_client::encoding::text::encode;
+use prometheus_client::encoding::EncodeLabelSet;
+use prometheus_client::metrics::counter::Counter;
+use prometheus_client::metrics::family::Family;
+use prometheus_client::registry::{Metric, Registry};
+
+#[derive(Clone, Hash, PartialEq, Eq, EncodeLabelSet, Debug)]
+struct UdpLabels {
+    server: String,
+    r#type: String,
+}
 
 lazy_static! {
-    static ref REGISTRY: Registry = Registry::new();
+    static ref REGISTRY: RwLock<Registry> = RwLock::new(<Registry>::default());
 
     // UDP sent
-    static ref UDP_SENT_COUNT: IntCounterVec = IntCounterVec::new(Opts::new("udp_sent_count", "Number of UDP datagrams sent"), &["server", "type"]).unwrap();
-    static ref UDP_SENT_BYTES: IntCounterVec = IntCounterVec::new(Opts::new("udp_sent_bytes", "Number of bytes sent over UDP"), &["server", "type"]).unwrap();
+    static ref UDP_SENT_COUNT: Family<UdpLabels, Counter> = {
+        let counter = Family::<UdpLabels, Counter>::default();
+        register("udp_sent_count", "Number of UDP datagrams sent", counter.clone());
+        counter
+    };
+    static ref UDP_SENT_BYTES: Family<UdpLabels, Counter> = {
+        let counter = Family::<UdpLabels, Counter>::default();
+        register("udp_sent_bytes", "Number of bytes sent over UDP", counter.clone());
+        counter
+    };
+
 
     // UDP received
-    static ref UDP_RECEIVED_COUNT: IntCounterVec = IntCounterVec::new(Opts::new("udp_received_count", "Number of UDP datagrams received"), &["server", "type"]).unwrap();
-    static ref UDP_RECEIVED_BYTES: IntCounterVec = IntCounterVec::new(Opts::new("udp_received_bytes", "Number of bytes received over UDP"), &["server", "type"]).unwrap();
+    static ref UDP_RECEIVED_COUNT: Family<UdpLabels, Counter> = {
+        let counter = Family::<UdpLabels, Counter>::default();
+        register("udp_received_count", "Number of UDP datagrams received", counter.clone());
+        counter
+    };
+    static ref UDP_RECEIVED_BYTES: Family<UdpLabels, Counter> = {
+        let counter = Family::<UdpLabels, Counter>::default();
+        register("udp_received_bytes", "Number of bytes received over UDP", counter.clone());
+        counter
+    };
+}
+
+fn register(name: &str, help: &str, metric: impl Metric) {
+    let mut registry_w = REGISTRY.write().unwrap();
+    registry_w.register(name, help, metric)
 }
 
 pub fn start(bind: String) {
-    debug!("Registering Prometheus metrics");
-    REGISTRY.register(Box::new(UDP_SENT_COUNT.clone())).unwrap();
-    REGISTRY.register(Box::new(UDP_SENT_BYTES.clone())).unwrap();
-    REGISTRY
-        .register(Box::new(UDP_RECEIVED_COUNT.clone()))
-        .unwrap();
-    REGISTRY
-        .register(Box::new(UDP_RECEIVED_BYTES.clone()))
-        .unwrap();
-
     info!("Starting Prometheus metrics server, bind: {}", bind);
     let listener = TcpListener::bind(bind).expect("bind metrics server error");
 
@@ -43,22 +66,38 @@ pub fn start(bind: String) {
 }
 
 pub fn incr_udp_sent_count(server: &str, typ: &str) {
-    UDP_SENT_COUNT.with_label_values(&[server, typ]).inc();
+    UDP_SENT_COUNT
+        .get_or_create(&UdpLabels {
+            server: server.to_string(),
+            r#type: typ.to_string(),
+        })
+        .inc();
 }
 
 pub fn incr_udp_sent_bytes(server: &str, typ: &str, count: usize) {
     UDP_SENT_BYTES
-        .with_label_values(&[server, typ])
+        .get_or_create(&UdpLabels {
+            server: server.to_string(),
+            r#type: typ.to_string(),
+        })
         .inc_by(count as u64);
 }
 
 pub fn incr_udp_received_count(server: &str, typ: &str) {
-    UDP_RECEIVED_COUNT.with_label_values(&[server, typ]).inc();
+    UDP_RECEIVED_COUNT
+        .get_or_create(&UdpLabels {
+            server: server.to_string(),
+            r#type: typ.to_string(),
+        })
+        .inc();
 }
 
 pub fn incr_udp_received_bytes(server: &str, typ: &str, count: usize) {
     UDP_RECEIVED_BYTES
-        .with_label_values(&[server, typ])
+        .get_or_create(&UdpLabels {
+            server: server.to_string(),
+            r#type: typ.to_string(),
+        })
         .inc_by(count as u64);
 }
 
@@ -73,7 +112,6 @@ fn handle_read(mut stream: &TcpStream) {
 }
 
 fn handle_write(mut stream: TcpStream) {
-    let encoder = prometheus::TextEncoder::new();
     if let Err(err) =
         stream.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n")
     {
@@ -81,13 +119,14 @@ fn handle_write(mut stream: TcpStream) {
         return;
     };
 
-    let mut buffer = Vec::new();
-    if let Err(err) = encoder.encode(&REGISTRY.gather(), &mut buffer) {
-        error!("Encode Prometheus metrics error: {}", err);
+    let registry_r = REGISTRY.read().unwrap();
+    let mut buffer = String::new();
+    if let Err(e) = encode(&mut buffer, &registry_r) {
+        error!("Encode Prometheus metrics error: {}", e);
         return;
     }
 
-    if let Err(err) = stream.write(&buffer) {
+    if let Err(err) = stream.write(buffer.as_bytes()) {
         error!("Write metrics error: {}", err);
     };
 }
