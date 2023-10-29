@@ -80,7 +80,7 @@ pub fn incr_udp_sent_bytes(server: &str, typ: &str, count: usize) {
             server: server.to_string(),
             r#type: typ.to_string(),
         })
-        .inc_by(count as u64);
+        .inc_by(count.try_into().unwrap());
 }
 
 pub fn incr_udp_received_count(server: &str, typ: &str) {
@@ -98,7 +98,7 @@ pub fn incr_udp_received_bytes(server: &str, typ: &str, count: usize) {
             server: server.to_string(),
             r#type: typ.to_string(),
         })
-        .inc_by(count as u64);
+        .inc_by(count.try_into().unwrap());
 }
 
 fn handle_request(stream: TcpStream) {
