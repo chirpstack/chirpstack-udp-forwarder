@@ -1,35 +1,35 @@
 [package]
-name = "chirpstack-udp-forwarder"
-description = "ChirpStack UDP Forwarder for Concentratord, compatible with the Semtech UDP protocol"
-repository = "https://github.com/chirpstack/chirpstack-udp-forwarder/"
-license = "MIT"
-version = "4.1.5"
-authors = ["Orne Brocaar <info@brocaar.com>"]
-edition = "2021"
-publish = false
+  name = "chirpstack-udp-forwarder"
+  description = "ChirpStack UDP Forwarder for Concentratord, compatible with the Semtech UDP protocol"
+  repository = "https://github.com/chirpstack/chirpstack-udp-forwarder/"
+  license = "MIT"
+  version = "4.1.5"
+  authors = ["Orne Brocaar <info@brocaar.com>"]
+  edition = "2021"
+  publish = false
 
 [dependencies]
-chirpstack_api = { version = "4.6.0", default-features = false }
-serde_json = "1.0"
-zmq = "0.10"
-clap = { version = "4.4", default-features = false, features = [
+  chirpstack_api = { version = "4.6.0", default-features = false }
+  serde_json = "1.0"
+  zmq = "0.10"
+  clap = { version = "4.4", default-features = false, features = [
     "std",
     "help",
     "usage",
     "derive",
-] }
-hex = "0.4"
-toml = "0.8"
-serde = { version = "1.0", features = ["derive"] }
-log = "0.4"
-simple_logger = "4.2"
-uuid = { version = "1.4", features = ["v4"] }
-syslog = "6.1"
-rand = "0.8"
-chrono = "0.4"
-base64 = "0.21"
-prost = "0.12"
-prost-types = "0.12"
-prometheus-client = "0.22"
-lazy_static = "1.4"
-anyhow = "1.0"
+  ] }
+  hex = "0.4"
+  toml = "0.8"
+  serde = { version = "1.0", features = ["derive"] }
+  log = "0.4"
+  simple_logger = "4.2"
+  uuid = { version = "1.4", features = ["v4"] }
+  syslog = "6.1"
+  rand = "0.8"
+  chrono = "0.4"
+  base64 = "0.21"
+  prost = "0.12"
+  prost-types = "0.12"
+  prometheus-client = "0.22"
+  lazy_static = "1.4"
+  anyhow = "1.0"
