@@ -1,4 +1,4 @@
-use std::fs;
+use std::{env, fs};
 
 use anyhow::Result;
 use serde::Deserialize;
@@ -81,6 +81,11 @@ impl Configuration {
                 Ok(v) => v,
                 Err(err) => return Err(anyhow!("read config file error: {}", err)),
             });
+        }
+
+        // Replace environment variables in config.
+        for (k, v) in env::vars() {
+            content = content.replace(&format!("${}", k), &v);
         }
 
         let config: Configuration = match toml::from_str(&content) {
