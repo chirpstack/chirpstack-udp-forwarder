@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# Set config-file permissions
+chown -R chirpstack:chirpstack /etc/chirpstack-udp-forwarder
+chmod 750 /etc/chirpstack-udp-forwarder
+chmod 640 /etc/chirpstack-udp-forwarder/*.toml
+
+#DEBHELPER#
+

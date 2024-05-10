@@ -33,3 +33,27 @@
   prometheus-client = "0.22"
   lazy_static = "1.4"
   anyhow = "1.0"
+
+[package.metadata.deb]
+  assets = [
+    [
+     "target/release/chirpstack-udp-forwarder",
+     "usr/bin/",
+     "755",
+    ],
+    [
+      "packaging/debian/chirpstack-udp-forwarder.toml",
+      "etc/chirpstack-udp-forwarder/",
+      "640",
+    ],
+  ]
+  conf-files = ["/etc/chirpstack-udp-forwarder/chirpstack-udp-forwarder.toml"]
+  maintainer-scripts = "packaging/debian/"
+  systemd-units = { enable = true }
+
+[profile.release]
+  strip = true
+  opt-level = "z"
+  lto = true
+  codegen-units = 1
+  panic = "abort"

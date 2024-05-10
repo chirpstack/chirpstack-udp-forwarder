@@ -1,0 +1,14 @@
+[Unit]
+Description=ChirpStack UDP Forwarder
+Documentation=https://www.chirpstack.io/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=chirpstack
+Group=chirpstack
+ExecStart=/usr/bin/chirpstack-udp-forwarder -c /etc/chirpstack-udp-forwarder/chirpstack-udp-forwarder.toml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

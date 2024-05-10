@@ -5,5 +5,7 @@ pkgs.mkShell {
     pkgs.cacert
     pkgs.rustup
     pkgs.protobuf
+    pkgs.cargo-cross
+    pkgs.cargo-deb
   ];
 }
