@@ -76,7 +76,73 @@ Configuration example:
 
 * [ChirpStack homepage](https://www.chirpstack.io/)
 
+## Building from source
+
+### Requirements
+
+Building ChirpStack UDP Forwarder requires:
+
+* [Nix](https://nixos.org/download.html) (recommended) and
+* [Docker](https://www.docker.com/)
+
+#### Nix
+
+Nix is used for setting up the development environment which is used for local
+development and for creating the binaries.
+
+If you do not have Nix installed and do not wish to install it, then you can
+use the provided Docker Compose based Nix environment. To start this environment
+execute the following command:
+
+```bash
+make docker-devshell
+```
+
+**Note:** You will be able to run the test commands and run `cargo build`, but
+cross-compiling will not work within this environment (because it would try start
+Docker within Docker).
+
+#### Docker
+
+Docker is used by [cross-rs](https://github.com/cross-rs/cross) for cross-compiling,
+as well as some of the `make` commands.
+
+### Starting the development shell
+
+Run the following command to start the development shell:
+
+```bash
+nix-shell
+```
+
+Or if you do not have Nix installed, execute the following command:
+
+```bash
+make docker-devshell
+```
+
+### Running tests
+
+Execute the following command to run the tests:
+
+```bash
+make test
+```
+
+### Building binaries
+
+Execute the following commands to build the ChirpStack UDP Forwarder binaries
+and packages:
+
+```bash
+# Only build binaries
+make build
+
+# Build binaries + distributable packages.
+make dist
+```
+
 ## License
 
 ChirpStack UDP Forwarder is distributed under the MIT license. See
-[LICENSE](https://github.com/brocaar/chirpstack-udp-bridge/blob/master/LICENSE).
+[LICENSE](https://github.com/brocaar/chirpstack-udp-forwarder/blob/master/LICENSE).
