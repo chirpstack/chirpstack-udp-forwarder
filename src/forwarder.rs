@@ -330,7 +330,7 @@ fn events_loop(state: Arc<State>, stop_receive: Receiver<signals::Signal>) {
             events::Event::Error(err) => {
                 error!("Read event error, error: {}", err);
             }
-            events::Event::Unknown(event, _) => {
+            events::Event::Unknown(event) => {
                 warn!("Unknown event received, event: {}", event);
             }
         }
@@ -527,6 +527,9 @@ fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<()> {
                         chirpstack_api::gw::TxAckStatus::QueueFull => "QUEUE_FULL".to_string(),
                         chirpstack_api::gw::TxAckStatus::InternalError => {
                             "INTERNAL_ERROR".to_string()
+                        }
+                        chirpstack_api::gw::TxAckStatus::DutyCycleOverflow => {
+                            "DUTY_CYCLE_OVERFLOW".to_string()
                         }
                     }
                 },

@@ -27,7 +27,7 @@ pub enum Event {
     Error(String),
 
     // Unknown event.
-    Unknown(String, Vec<u8>),
+    Unknown(String),
 
     // Uplink event.
     Uplink(Box<chirpstack_api::gw::UplinkFrame>),
@@ -82,7 +82,7 @@ fn handle_message(msg: Vec<Vec<u8>>) -> Result<Event> {
             Ok(v) => Event::Stats(Box::new(v)),
             Err(err) => Event::Error(err.to_string()),
         },
-        _ => Event::Unknown(event, msg[1].clone()),
+        _ => Event::Unknown(event),
     })
 }
 

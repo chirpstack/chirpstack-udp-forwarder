@@ -240,7 +240,7 @@ impl RxPk {
 
         Ok(RxPk {
             time: match &rx_info.gw_time {
-                Some(v) => match TryInto::<SystemTime>::try_into(v.clone()) {
+                Some(v) => match TryInto::<SystemTime>::try_into(*v) {
                     Ok(v) => v.into(),
                     Err(_) => Utc::now(),
                 },
@@ -355,7 +355,7 @@ impl Stat {
     pub fn from_proto(stats: &chirpstack_api::gw::GatewayStats) -> Result<Self> {
         Ok(Stat {
             time: match &stats.time {
-                Some(v) => match TryInto::<SystemTime>::try_into(v.clone()) {
+                Some(v) => match TryInto::<SystemTime>::try_into(*v) {
                     Ok(v) => v.into(),
                     Err(_) => Utc::now(),
                 },
@@ -512,8 +512,6 @@ pub struct TxPk {
     pub tmms: Option<u64>,
     /// TX central frequency in MHz (unsigned float, Hz precision).
     pub freq: f64,
-    /// Concentrator "RF chain" used for TX (unsigned integer).
-    pub rfch: u8,
     /// TX output power in dBm (unsigned integer, dBm precision).
     pub powe: u8,
     /// Modulation identifier "LORA" or "FSK".
@@ -528,8 +526,6 @@ pub struct TxPk {
     pub ipol: Option<bool>,
     /// RF preamble size (unsigned integer).
     pub prea: Option<u8>,
-    /// RF packet payload size in bytes (unsigned integer).
-    pub size: u8,
     /// Base64 encoded RF packet payload, padding optional.
     pub data: String,
     /// If true, disable the Crc of the physical layer (optional).
