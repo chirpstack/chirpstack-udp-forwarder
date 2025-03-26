@@ -1,10 +1,10 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::sync::RwLock;
+use std::sync::{LazyLock, RwLock};
 use std::thread;
 
-use prometheus_client::encoding::text::encode;
 use prometheus_client::encoding::EncodeLabelSet;
+use prometheus_client::encoding::text::encode;
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
 use prometheus_client::registry::{Metric, Registry};
@@ -15,34 +15,43 @@ struct UdpLabels {
     r#type: String,
 }
 
-lazy_static! {
-    static ref REGISTRY: RwLock<Registry> = RwLock::new(<Registry>::default());
-
-    // UDP sent
-    static ref UDP_SENT_COUNT: Family<UdpLabels, Counter> = {
-        let counter = Family::<UdpLabels, Counter>::default();
-        register("udp_sent_count", "Number of UDP datagrams sent", counter.clone());
-        counter
-    };
-    static ref UDP_SENT_BYTES: Family<UdpLabels, Counter> = {
-        let counter = Family::<UdpLabels, Counter>::default();
-        register("udp_sent_bytes", "Number of bytes sent over UDP", counter.clone());
-        counter
-    };
-
-
-    // UDP received
-    static ref UDP_RECEIVED_COUNT: Family<UdpLabels, Counter> = {
-        let counter = Family::<UdpLabels, Counter>::default();
-        register("udp_received_count", "Number of UDP datagrams received", counter.clone());
-        counter
-    };
-    static ref UDP_RECEIVED_BYTES: Family<UdpLabels, Counter> = {
-        let counter = Family::<UdpLabels, Counter>::default();
-        register("udp_received_bytes", "Number of bytes received over UDP", counter.clone());
-        counter
-    };
-}
+static REGISTRY: LazyLock<RwLock<Registry>> = LazyLock::new(|| RwLock::new(Registry::default()));
+static UDP_SENT_COUNT: LazyLock<Family<UdpLabels, Counter>> = LazyLock::new(|| {
+    let counter = Family::<UdpLabels, Counter>::default();
+    register(
+        "udp_sent_count",
+        "Number of UDP datagrams sent",
+        counter.clone(),
+    );
+    counter
+});
+static UDP_SENT_BYTES: LazyLock<Family<UdpLabels, Counter>> = LazyLock::new(|| {
+    let counter = Family::<UdpLabels, Counter>::default();
+    register(
+        "udp_sent_bytes",
+        "Number of bytes sent over UDP",
+        counter.clone(),
+    );
+    counter
+});
+static UDP_RECEIVED_COUNT: LazyLock<Family<UdpLabels, Counter>> = LazyLock::new(|| {
+    let counter = Family::<UdpLabels, Counter>::default();
+    register(
+        "udp_received_count",
+        "Number of UDP datagrams received",
+        counter.clone(),
+    );
+    counter
+});
+static UDP_RECEIVED_BYTES: LazyLock<Family<UdpLabels, Counter>> = LazyLock::new(|| {
+    let counter = Family::<UdpLabels, Counter>::default();
+    register(
+        "udp_received_bytes",
+        "Number of bytes received over UDP",
+        counter.clone(),
+    );
+    counter
+});
 
 fn register(name: &str, help: &str, metric: impl Metric) {
     let mut registry_w = REGISTRY.write().unwrap();

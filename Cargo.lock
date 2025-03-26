@@ -111,7 +111,6 @@ dependencies = [
  "chrono",
  "clap",
  "hex",
- "lazy_static",
  "log",
  "prometheus-client",
  "prost",
