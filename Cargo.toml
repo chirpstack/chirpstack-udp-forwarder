@@ -5,11 +5,11 @@
   license = "MIT"
   version = "4.1.8"
   authors = ["Orne Brocaar <info@brocaar.com>"]
-  edition = "2021"
+  edition = "2024"
   publish = false
 
 [dependencies]
-  chirpstack_api = { version = "4.9", default-features = false }
+  chirpstack_api = { version = "4.11", default-features = false }
   serde_json = "1.0"
   zmq = "0.10"
   clap = { version = "4.5", default-features = false, features = [
@@ -23,14 +23,14 @@
   serde = { version = "1.0", features = ["derive"] }
   log = "0.4"
   simple_logger = "5.0"
-  uuid = { version = "1.10", features = ["v4"] }
+  uuid = { version = "1.16", features = ["v4"] }
   syslog = "7.0"
-  rand = "0.8"
+  rand = "0.9"
   chrono = "0.4"
   base64 = "0.22"
   prost = "0.13"
   prost-types = "0.13"
-  prometheus-client = "0.22"
+  prometheus-client = "0.23"
   lazy_static = "1.5"
   anyhow = "1.0"
 

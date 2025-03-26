@@ -36,9 +36,9 @@ struct State {
 
 impl State {
     fn set_pull_data_token(&self) -> u16 {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut token = self.pull_data_token.lock().unwrap();
-        *token = rng.gen();
+        *token = rng.random();
         *token
     }
 
@@ -56,9 +56,9 @@ impl State {
     }
 
     fn set_push_data_token(&self) -> u16 {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut token = self.push_data_token.lock().unwrap();
-        *token = rng.gen();
+        *token = rng.random();
         *token
     }
 
