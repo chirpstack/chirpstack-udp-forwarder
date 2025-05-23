@@ -3,13 +3,13 @@ use std::time::Duration;
 use std::time::SystemTime;
 
 use anyhow::Result;
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use chrono::{DateTime, Utc};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
-use chirpstack_api::gw;
+use chirpstack_api::{gw, prost_types};
 
 const PROTOCOL_VERSION: u8 = 0x02;
 

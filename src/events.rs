@@ -1,9 +1,18 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use prost::Message;
+use chirpstack_api::{gw, prost::Message};
 
 use super::socket::ZMQ_CONTEXT;
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Timeout")]
+    Timeout,
+
+    #[error(transparent)]
+    Anyhow(#[from] anyhow::Error),
+}
 
 pub fn get_socket(endpoint: &str) -> Result<zmq::Socket, zmq::Error> {
     info!(
@@ -19,23 +28,6 @@ pub fn get_socket(endpoint: &str) -> Result<zmq::Socket, zmq::Error> {
     Ok(sock)
 }
 
-pub enum Event {
-    // Reading event timed out.
-    Timeout,
-
-    // Error reading event.
-    Error(String),
-
-    // Unknown event.
-    Unknown(String),
-
-    // Uplink event.
-    Uplink(Box<chirpstack_api::gw::UplinkFrame>),
-
-    // Stats event.
-    Stats(Box<chirpstack_api::gw::GatewayStats>),
-}
-
 pub struct Reader<'a> {
     sub_sock: &'a zmq::Socket,
     timeout: Duration,
@@ -48,48 +40,20 @@ impl<'a> Reader<'a> {
 }
 
 impl Iterator for Reader<'_> {
-    type Item = Event;
+    type Item = Result<gw::Event, Error>;
 
-    fn next(&mut self) -> Option<Event> {
+    fn next(&mut self) -> Option<Result<gw::Event, Error>> {
         // set poller so that we can timeout
         let mut items = [self.sub_sock.as_poll_item(zmq::POLLIN)];
         zmq::poll(&mut items, self.timeout.as_millis() as i64).unwrap();
         if !items[0].is_readable() {
-            return Some(Event::Timeout);
+            return Some(Err(Error::Timeout));
         }
 
-        let msg = self.sub_sock.recv_multipart(0).unwrap();
-        match handle_message(msg) {
-            Ok(v) => Some(v),
-            Err(err) => Some(Event::Error(err.to_string())),
+        let b = self.sub_sock.recv_bytes(0).unwrap();
+        match gw::Event::decode(b.as_slice()).map_err(|e| Error::Anyhow(anyhow::Error::new(e))) {
+            Ok(v) => Some(Ok(v)),
+            Err(e) => Some(Err(e)),
         }
     }
-}
-
-fn handle_message(msg: Vec<Vec<u8>>) -> Result<Event> {
-    if msg.len() != 2 {
-        return Err(anyhow!("Event must have two frames"));
-    }
-
-    let event = String::from_utf8(msg[0].clone())?;
-
-    Ok(match event.as_str() {
-        "up" => match parse_up(&msg[1]) {
-            Ok(v) => Event::Uplink(Box::new(v)),
-            Err(err) => Event::Error(err.to_string()),
-        },
-        "stats" => match parse_stats(&msg[1]) {
-            Ok(v) => Event::Stats(Box::new(v)),
-            Err(err) => Event::Error(err.to_string()),
-        },
-        _ => Event::Unknown(event),
-    })
-}
-
-fn parse_up(msg: &[u8]) -> Result<chirpstack_api::gw::UplinkFrame> {
-    Ok(chirpstack_api::gw::UplinkFrame::decode(msg)?)
-}
-
-fn parse_stats(msg: &[u8]) -> Result<chirpstack_api::gw::GatewayStats> {
-    Ok(chirpstack_api::gw::GatewayStats::decode(msg)?)
 }

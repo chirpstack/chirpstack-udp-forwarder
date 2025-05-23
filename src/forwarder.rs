@@ -4,8 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
 use anyhow::Result;
-use chirpstack_api::gw;
-use prost::Message;
+use chirpstack_api::{gw, prost::Message};
 use rand::Rng;
 
 use super::commands;
@@ -318,21 +317,17 @@ fn events_loop(state: Arc<State>, stop_receive: Receiver<signals::Signal>) {
         }
 
         match cmd {
-            events::Event::Uplink(up) => {
-                events_up(&state, *up);
-            }
-            events::Event::Stats(stats) => {
-                events_stats(&state, *stats);
-            }
-            events::Event::Timeout => {
-                continue;
-            }
-            events::Event::Error(err) => {
-                error!("Read event error, error: {}", err);
-            }
-            events::Event::Unknown(event) => {
-                warn!("Unknown event received, event: {}", event);
-            }
+            Ok(v) => match v.event {
+                Some(gw::event::Event::UplinkFrame(pl)) => events_up(&state, pl),
+                Some(gw::event::Event::GatewayStats(pl)) => events_stats(&state, pl),
+                _ => continue,
+            },
+            Err(e) => match e {
+                events::Error::Timeout => continue,
+                _ => {
+                    warn!("Read event error, error: {}", e);
+                }
+            },
         }
     }
 }
@@ -472,12 +467,13 @@ fn handle_pull_resp(state: &Arc<State>, data: &[u8]) -> Result<()> {
         }
     };
 
-    let mut buf = Vec::new();
-    pl.encode(&mut buf).unwrap();
+    let pl = gw::Command {
+        command: Some(gw::command::Command::SendDownlinkFrame(pl)),
+    };
+    let b = pl.encode_to_vec();
 
     // send 'down' command with payload
-    sock.send("down", zmq::SNDMORE).unwrap();
-    sock.send(buf, 0).unwrap();
+    sock.send(b, 0).unwrap();
 
     // set poller so that we can timeout after 100ms
     let mut items = [sock.as_poll_item(zmq::POLLIN)];
