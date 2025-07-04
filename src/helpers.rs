@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chirpstack_api::{gw, prost::Message};
 
 use super::commands;
 
@@ -7,9 +8,13 @@ pub fn get_gateway_id(command_url: &str) -> Result<Vec<u8>> {
 
     let sock = commands::get_socket(command_url).expect("get client error");
 
-    // send 'gateway_id' command with empty payload
-    sock.send("gateway_id", zmq::SNDMORE).unwrap();
-    sock.send("", 0).unwrap();
+    // Send command.
+    let cmd = gw::Command {
+        command: Some(gw::command::Command::GetGatewayId(
+            gw::GetGatewayIdRequest {},
+        )),
+    };
+    sock.send(cmd.encode_to_vec(), 0).unwrap();
 
     // set poller so that we can timout after 100ms
     let mut items = [sock.as_poll_item(zmq::POLLIN)];
@@ -19,6 +24,8 @@ pub fn get_gateway_id(command_url: &str) -> Result<Vec<u8>> {
     }
 
     // read 'gateway_id' response
-    let gateway_id = sock.recv_bytes(0).unwrap();
-    Ok(gateway_id)
+    let b = sock.recv_bytes(0).unwrap();
+    let resp = gw::GetGatewayIdResponse::decode(b.as_slice()).unwrap();
+
+    Ok(hex::decode(resp.gateway_id)?)
 }
