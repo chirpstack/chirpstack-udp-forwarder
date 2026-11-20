@@ -640,8 +640,13 @@ impl TxAck {
         b.push(0x05);
         b.append(&mut self.gateway_id.to_vec());
 
-        let mut j = serde_json::to_vec(&self.payload).unwrap();
-        b.append(&mut j);
+        // No JSON when there is nothing to report: the Semtech UDP protocol treats a TX_ACK
+        // without payload as success. An empty "error" string is not a valid value (The Things
+        // Stack reports it as UNKNOWN_ERROR).
+        if !self.payload.txpk_ack.error.is_empty() {
+            let mut j = serde_json::to_vec(&self.payload).unwrap();
+            b.append(&mut j);
+        }
 
         b
     }
@@ -1168,5 +1173,21 @@ mod tests {
             str::from_utf8(&b[12..]).unwrap(),
             r#"{"txpk_ack":{"error":"TOO_LATE"}}"#,
         );
+    }
+
+    #[test]
+    fn test_tx_ack_ok() {
+        let tx_ack = TxAck {
+            random_token: 123,
+            gateway_id: [1, 2, 3, 4, 5, 6, 7, 8],
+            payload: TxAckPayload {
+                txpk_ack: TxAckPayloadError {
+                    error: "".to_string(),
+                },
+            },
+        };
+
+        let b = tx_ack.to_bytes();
+        assert_eq!(b, vec![2, 0, 123, 5, 1, 2, 3, 4, 5, 6, 7, 8]);
     }
 }
